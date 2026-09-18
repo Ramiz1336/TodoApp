@@ -1,39 +1,62 @@
-import { useContext, useMemo, lazy, Suspense, useEffect } from "react";
+import { useContext, useMemo, lazy, Suspense, useEffect, useState } from "react";
 import {
   AddButton,
-  GreetingHeader,
   Offline,
-  ProgressPercentageContainer,
-  StyledProgress,
-  TaskCompletionText,
-  TaskCountClose,
-  TaskCountHeader,
-  TaskCountTextContainer,
-  TasksCount,
-  TasksCountContainer,
+  ProgressSectionWrapper,
+  ProgressHeaderRow,
+  ProgressTitle,
+  ProgressCountText,
+  ProgressBarTrack,
+  ProgressBarFill,
+  ProgressSubtitle,
+  ProgressCloseBtn,
+  HomeContainer,
+  HomeTopBar,
+  HomeMenuBtn,
+  HomeDateDisplay,
+  HomeTitleSection,
+  HomePageTitle,
+  HomePageSubtitle,
+  HomeAccentLine,
 } from "../styles";
 
-import { Emoji } from "emoji-picker-react";
-import { Box, Button, CircularProgress, Tooltip, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Popover, Tooltip } from "@mui/material";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
-import { AddRounded, CloseRounded, TodayRounded, UndoRounded, WifiOff } from "@mui/icons-material";
+import {
+  AddRounded,
+  ArrowBackRounded,
+  CloseRounded,
+  UndoRounded,
+  WifiOff,
+} from "@mui/icons-material";
 import { UserContext } from "../contexts/UserContext";
 import { useResponsiveDisplay } from "../hooks/useResponsiveDisplay";
 import { useNavigate } from "react-router-dom";
-import { AnimatedGreeting } from "../components/AnimatedGreeting";
 import { showToast } from "../utils";
+import { TestingDateControl } from "../components/TestingDateControl";
+import { getAppNow, getTestingDate } from "../utils/testingDate";
+import { getScheduledRecurringTasks, isCountedInDailyPerformance } from "../utils/taskSchedule";
 
 const TasksList = lazy(() =>
   import("../components/tasks/TasksList").then((module) => ({ default: module.TasksList })),
 );
 
+const formatHomeHeaderDate = (d: Date): string => {
+  const dayName = d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
+  const dayNum = d.getDate();
+  const monthName = d.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+  const year = d.getFullYear();
+  return `${dayName}  /  ${dayNum}  ${monthName}  ${year}`;
+};
+
 const Home = () => {
   const { user, setUser } = useContext(UserContext);
-  const { tasks, emojisStyle, settings, name } = user;
+  const { tasks, settings, name } = user;
 
   const isOnline = useOnlineStatus();
   const n = useNavigate();
   const isMobile = useResponsiveDisplay();
+  const [testDateAnchor, setTestDateAnchor] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     document.title = "Todo App";
@@ -41,10 +64,15 @@ const Home = () => {
 
   // Calculate these values only when tasks change
   const taskStats = useMemo(() => {
-    const completedCount = tasks.filter((task) => task.done).length;
-    const completedPercentage = tasks.length > 0 ? (completedCount / tasks.length) * 100 : 0;
+    const appNow = getAppNow();
+    const scheduledTasks = getScheduledRecurringTasks(tasks, appNow).filter(
+      isCountedInDailyPerformance,
+    );
+    const completedCount = scheduledTasks.filter((task) => task.done).length;
+    const completedPercentage =
+      scheduledTasks.length > 0 ? (completedCount / scheduledTasks.length) * 100 : 0;
 
-    const today = new Date().setHours(0, 0, 0, 0);
+    const today = new Date(appNow).setHours(0, 0, 0, 0);
     const dueTodayTasks = tasks.filter((task) => {
       if (task.deadline) {
         const taskDeadline = new Date(task.deadline).setHours(0, 0, 0, 0);
@@ -57,6 +85,7 @@ const Home = () => {
 
     return {
       completedTasksCount: completedCount,
+      scheduledTasksCount: scheduledTasks.length,
       completedTaskPercentage: completedPercentage,
       tasksWithDeadlineTodayCount: dueTodayTasks.length,
       tasksDueTodayNames: taskNamesDueToday,
@@ -65,10 +94,10 @@ const Home = () => {
 
   // Memoize time-based greeting
   const timeGreeting = useMemo(() => {
-    const currentHour = new Date().getHours();
+    const currentHour = getAppNow().getHours();
     if (currentHour < 12 && currentHour >= 5) {
       return "Good morning";
-    } else if (currentHour < 18 && currentHour > 12) {
+    } else if (currentHour < 18 && currentHour >= 12) {
       return "Good afternoon";
     } else {
       return "Good evening";
@@ -104,105 +133,118 @@ const Home = () => {
     }));
   };
 
-  return (
-    <>
-      <GreetingHeader>
-        <Emoji unified="1f44b" emojiStyle={emojisStyle} /> &nbsp; {timeGreeting}
-        {name && (
-          <span translate="no">
-            , <span>{name}</span>
-          </span>
-        )}
-      </GreetingHeader>
+  const appNow = getAppNow();
+  const roundedPercent = Math.round(taskStats.completedTaskPercentage);
 
-      <AnimatedGreeting />
+  const handleOpenMenu = () => {
+    const sidebarTrigger = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Sidebar"]',
+    );
+    if (sidebarTrigger) {
+      sidebarTrigger.click();
+    }
+  };
+
+  return (
+    <HomeContainer>
+      <HomeTopBar>
+        <HomeMenuBtn onClick={handleOpenMenu} aria-label="Open Menu">
+          <ArrowBackRounded sx={{ fontSize: 18 }} />
+          <span>Menu</span>
+        </HomeMenuBtn>
+
+        <HomeDateDisplay
+          onClick={(e) => setTestDateAnchor(e.currentTarget)}
+          title="Click to adjust test date"
+        >
+          {getTestingDate() ? "TEST • " : ""}
+          {formatHomeHeaderDate(appNow)}
+        </HomeDateDisplay>
+
+        <Popover
+          open={Boolean(testDateAnchor)}
+          anchorEl={testDateAnchor}
+          onClose={() => setTestDateAnchor(null)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+          PaperProps={{ sx: { p: 2, borderRadius: 3, boxShadow: "0 8px 32px rgba(0,0,0,0.12)" } }}
+        >
+          <TestingDateControl />
+        </Popover>
+      </HomeTopBar>
+
+      <HomeTitleSection>
+        <HomePageTitle>Tasks</HomePageTitle>
+        <HomePageSubtitle>
+          {timeGreeting}
+          {name && (
+            <span translate="no">
+              , <span>{name}</span>
+            </span>
+          )}
+          .
+        </HomePageSubtitle>
+      </HomeTitleSection>
+
+      <HomeAccentLine />
 
       {!isOnline && (
         <Offline>
           <WifiOff /> You're offline but you can use the app!
         </Offline>
       )}
-      {tasks.length > 0 && settings.showProgressBar && (
-        <TasksCountContainer>
-          <TasksCount glow={settings.enableGlow}>
-            <TaskCountClose
-              size="small"
-              onClick={() => {
-                updateShowProgressBar(false);
-                showToast(
-                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    Progress bar hidden. You can enable it in settings.
-                    <Button
-                      variant="contained"
-                      sx={{ p: "12px 32px" }}
-                      onClick={() => updateShowProgressBar(true)}
-                      startIcon={<UndoRounded />}
-                    >
-                      Undo
-                    </Button>
-                  </span>,
-                );
-              }}
-            >
-              <CloseRounded />
-            </TaskCountClose>
-            <Box sx={{ position: "relative", display: "inline-flex" }}>
-              <StyledProgress
-                variant="determinate"
-                value={taskStats.completedTaskPercentage}
-                size={64}
-                thickness={5}
-                aria-label="Progress"
-                glow={settings.enableGlow}
-              />
 
-              <ProgressPercentageContainer
-                glow={settings.enableGlow && taskStats.completedTaskPercentage > 0}
-              >
-                <Typography
-                  variant="caption"
-                  component="div"
-                  color="white"
-                  sx={{ fontSize: "16px", fontWeight: 600 }}
-                >{`${Math.round(taskStats.completedTaskPercentage)}%`}</Typography>
-              </ProgressPercentageContainer>
-            </Box>
-            <TaskCountTextContainer>
-              <TaskCountHeader>
-                {taskStats.completedTasksCount === 0
-                  ? `You have ${tasks.length} task${tasks.length > 1 ? "s" : ""} to complete.`
-                  : `You've completed ${taskStats.completedTasksCount} out of ${tasks.length} tasks.`}
-              </TaskCountHeader>
-              <TaskCompletionText>{taskCompletionText}</TaskCompletionText>
-              {taskStats.tasksWithDeadlineTodayCount > 0 && (
-                <span
-                  style={{
-                    opacity: 0.8,
-                    display: "inline-block",
-                  }}
-                >
-                  <TodayRounded sx={{ fontSize: "20px", verticalAlign: "middle" }} />
-                  &nbsp;Tasks due today:&nbsp;
-                  <span translate="no">
-                    {new Intl.ListFormat("en", { style: "long" }).format(
-                      taskStats.tasksDueTodayNames,
-                    )}
-                  </span>
-                </span>
-              )}
-            </TaskCountTextContainer>
-          </TasksCount>
-        </TasksCountContainer>
+      {taskStats.scheduledTasksCount > 0 && settings.showProgressBar && (
+        <ProgressSectionWrapper>
+          <ProgressCloseBtn
+            size="small"
+            onClick={() => {
+              updateShowProgressBar(false);
+              showToast(
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  Progress bar hidden. You can enable it in settings.
+                  <Button
+                    variant="contained"
+                    sx={{ p: "12px 32px" }}
+                    onClick={() => updateShowProgressBar(true)}
+                    startIcon={<UndoRounded />}
+                  >
+                    Undo
+                  </Button>
+                </span>,
+              );
+            }}
+          >
+            <CloseRounded sx={{ fontSize: 16 }} />
+          </ProgressCloseBtn>
+
+          <ProgressHeaderRow>
+            <ProgressTitle>Today's Progress</ProgressTitle>
+            <ProgressCountText>
+              {taskStats.completedTasksCount} / {taskStats.scheduledTasksCount} done
+            </ProgressCountText>
+          </ProgressHeaderRow>
+
+          <ProgressBarTrack>
+            <ProgressBarFill percentage={roundedPercent}>
+              {roundedPercent >= 10 ? `${roundedPercent}%` : ""}
+            </ProgressBarFill>
+          </ProgressBarTrack>
+
+          <ProgressSubtitle>{taskCompletionText}</ProgressSubtitle>
+        </ProgressSectionWrapper>
       )}
+
       <Suspense
         fallback={
-          <Box display="flex" justifyContent="center" alignItems="center">
+          <Box display="flex" justifyContent="center" alignItems="center" sx={{ py: 6 }}>
             <CircularProgress />
           </Box>
         }
       >
         <TasksList />
       </Suspense>
+
       {!isMobile && (
         <Tooltip title={tasks.length > 0 ? "Add New Task" : "Add Task"} placement="left">
           <AddButton
@@ -215,7 +257,7 @@ const Home = () => {
           </AddButton>
         </Tooltip>
       )}
-    </>
+    </HomeContainer>
   );
 };
 

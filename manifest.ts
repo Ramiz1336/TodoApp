@@ -3,13 +3,14 @@ import type { ManifestOptions } from "vite-plugin-pwa";
 const manifest: Partial<ManifestOptions> = {
   name: "Todo App",
   short_name: "Todo App",
+  id: "/",
   display: "standalone",
   scope: "/",
   start_url: "/",
   theme_color: "#7764E8",
   background_color: "#171D34",
   description:
-    "A fast and modern Todo app built with React, featuring task sharing via link, P2P Task Sync with WebRTC, theme customization, offline usage as a PWA, and caching for smooth performance. Made by github.com/maciekt07",
+    "A fast and modern Todo app featuring task sharing via link, P2P Task Sync with WebRTC, theme customization, offline usage as a PWA, and productivity performance analytics.",
   categories: ["productivity", "utilities", "lifestyle"],
   edge_side_panel: {
     preferred_width: 500,
@@ -45,7 +46,7 @@ const manifest: Partial<ManifestOptions> = {
       purpose: "any",
     },
     {
-      src: "pwa/logoMaskable.png",
+      src: "/pwa/logoMaskable.png",
       sizes: "512x512",
       type: "image/png",
       purpose: "maskable",
@@ -54,11 +55,23 @@ const manifest: Partial<ManifestOptions> = {
   shortcuts: [
     {
       name: "Add Task",
-      description: "Add Task",
+      description: "Add a new task",
       url: "/add",
       icons: [
         {
-          src: "pwa/add.png",
+          src: "/pwa/add.png",
+          sizes: "192x192",
+          type: "image/png",
+        },
+      ],
+    },
+    {
+      name: "Tracked Habits",
+      description: "Daily habits and recurring tasks",
+      url: "/tracked",
+      icons: [
+        {
+          src: "/pwa/categories.png",
           sizes: "192x192",
           type: "image/png",
         },
@@ -70,7 +83,7 @@ const manifest: Partial<ManifestOptions> = {
       url: "/categories",
       icons: [
         {
-          src: "pwa/categories.png",
+          src: "/pwa/categories.png",
           sizes: "192x192",
           type: "image/png",
         },
@@ -78,35 +91,35 @@ const manifest: Partial<ManifestOptions> = {
     },
     {
       name: "Transfer",
-      description: "Import or Export Task",
+      description: "Import or Export Tasks",
       url: "/transfer",
       icons: [
         {
-          src: "pwa/transfer.png",
+          src: "/pwa/transfer.png",
           sizes: "192x192",
           type: "image/png",
         },
       ],
     },
-    // {
-    //   name: "Purge",
-    //   description: "Purge Tasks",
-    //   url: "/purge",
-    //   icons: [
-    //     {
-    //       src: "pwa/purge.png",
-    //       sizes: "192x192",
-    //       type: "image/png",
-    //     },
-    //   ],
-    // },
+    {
+      name: "Purge",
+      description: "Purge Tasks",
+      url: "/purge",
+      icons: [
+        {
+          src: "/pwa/purge.png",
+          sizes: "192x192",
+          type: "image/png",
+        },
+      ],
+    },
     {
       name: "Profile",
       description: "User Profile",
       url: "/user",
       icons: [
         {
-          src: "pwa/profile.png",
+          src: "/pwa/profile.png",
           sizes: "192x192",
           type: "image/png",
         },
@@ -115,22 +128,22 @@ const manifest: Partial<ManifestOptions> = {
   ],
   screenshots: [
     {
-      src: "pwa/wideScreenshot1.webp",
+      src: "/pwa/wideScreenshot1.webp",
       sizes: "1460x959",
       form_factor: "wide",
     },
     {
-      src: "pwa/wideScreenshot2.webp",
+      src: "/pwa/wideScreenshot2.webp",
       sizes: "1460x959",
       form_factor: "wide",
     },
     {
-      src: "pwa/narrowScreenshot1.webp",
+      src: "/pwa/narrowScreenshot1.webp",
       sizes: "1170x2532",
       form_factor: "narrow",
     },
     {
-      src: "pwa/narrowScreenshot2.webp",
+      src: "/pwa/narrowScreenshot2.webp",
       sizes: "1170x2532",
       form_factor: "narrow",
     },

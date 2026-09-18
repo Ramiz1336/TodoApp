@@ -23,7 +23,7 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { BottomSheet } from "react-spring-bottom-sheet";
 import "react-spring-bottom-sheet/dist/style.css";
-import { TaskIcon, TaskItem } from "..";
+import { TaskItem } from "..";
 import { UserContext } from "../../contexts/UserContext";
 import { useResponsiveDisplay } from "../../hooks/useResponsiveDisplay";
 import { Task } from "../../types/user";
@@ -33,6 +33,9 @@ import { TaskContext } from "../../contexts/TaskContext";
 import { ColorPalette } from "../../theme/themeConfig";
 import { ShareDialog } from "./ShareDialog";
 import { usePrefersReducedMotion } from "../../hooks/usePrefersReducedMotion";
+import { applyTaskCompletion } from "../../utils/taskRecurrence";
+import { getAppNow } from "../../utils/testingDate";
+import { CompleteTaskDialog } from "./CompleteTaskDialog";
 
 export const TaskMenu = () => {
   const { user, setUser } = useContext(UserContext);
@@ -49,6 +52,7 @@ export const TaskMenu = () => {
     moveMode,
     setMoveMode,
     setSearch,
+    handleOpenCompletionDialog,
   } = useContext(TaskContext);
   const [showShareDialog, setShowShareDialog] = useState<boolean>(false);
 
@@ -67,39 +71,17 @@ export const TaskMenu = () => {
   };
 
   const handleMarkAsDone = () => {
-    // Toggles the "done" property of the selected task
-    if (selectedTaskId) {
+    if (!selectedTaskId) return;
+    if (selectedTask.done) {
       handleCloseMoreMenu();
-      const updatedTasks = tasks.map((task) => {
-        if (task.id === selectedTaskId) {
-          return { ...task, done: !task.done, lastSave: new Date() };
-        }
-        return task;
-      });
-      setUser((prevUser) => ({
-        ...prevUser,
-        tasks: updatedTasks,
-      }));
-
-      const allTasksDone = updatedTasks.every((task) => task.done);
-
-      if (allTasksDone) {
-        showToast(
-          <div>
-            <b>All tasks done</b>
-            <br />
-            <span>You've checked off all your todos. Well done!</span>
-          </div>,
-          {
-            icon: (
-              <div style={{ margin: "-6px 4px -6px -6px" }}>
-                <TaskIcon variant="success" scale={0.18} />
-              </div>
-            ),
-          },
-        );
-      }
+      const updatedTasks = tasks.map((task) =>
+        task.id === selectedTaskId ? applyTaskCompletion(task) : task,
+      );
+      setUser((prevUser) => ({ ...prevUser, tasks: updatedTasks }));
+      return;
     }
+
+    handleOpenCompletionDialog(selectedTaskId);
   };
 
   const handlePin = () => {
@@ -160,6 +142,7 @@ export const TaskMenu = () => {
       ? `. Task Deadline: ${calculateDateDifference(
           new Date(selectedTask.deadline),
           voice ? voice.lang : navigator.language,
+          getAppNow(),
         )}`
       : "";
 
@@ -379,7 +362,7 @@ export const TaskMenu = () => {
             backdropFilter: "blur(8px)",
           }}
         >
-          <TaskItem task={selectedTask} features={{ enableGlow: false }} />
+          <TaskItem task={selectedTask} features={{ enableGlow: false, fullDescription: true }} />
           <Divider sx={{ mt: "20px", mb: "-20px" }} />
         </div>
       }
@@ -419,6 +402,9 @@ export const TaskMenu = () => {
           {menuItems}
         </Menu>
       )}
+
+      <CompleteTaskDialog />
+
       <ShareDialog
         open={showShareDialog}
         onClose={() => setShowShareDialog(false)}

@@ -31,12 +31,22 @@ const SharePage = () => {
 
   useEffect(() => {
     const handleTaskData = (decodedTask: string) => {
-      const task: Task = { ...(JSON.parse(decodedTask) as Task), id: generateUUID() };
-
+      const parsedTask = JSON.parse(decodedTask) as Partial<Task>;
       if (
-        !isHexColor(task.color) ||
-        (task.category && task.category.some((cat) => !isHexColor(cat.color)))
+        typeof parsedTask.name !== "string" ||
+        parsedTask.name.trim().length === 0 ||
+        typeof parsedTask.color !== "string" ||
+        !isHexColor(parsedTask.color) ||
+        !parsedTask.date
       ) {
+        setError(true);
+        setErrorDetails("The shared task is missing required task details.");
+        return;
+      }
+
+      const task: Task = { ...(parsedTask as Task), id: generateUUID() };
+
+      if (task.category && task.category.some((cat) => !isHexColor(cat.color))) {
         setError(true);
         setErrorDetails("Invalid task or category color format.");
         return;

@@ -1,10 +1,9 @@
-import { Avatar, Chip, ChipProps, styled } from "@mui/material";
+import styled from "@emotion/styled";
+import { Avatar, Chip, ChipProps } from "@mui/material";
 import { Emoji, EmojiStyle } from "emoji-picker-react";
 import { useContext } from "react";
 import { UserContext } from "../contexts/UserContext";
-import { fadeIn } from "../styles";
 import type { Category } from "../types/user";
-import { getFontColor } from "../utils";
 
 interface CategoryBadgeProps extends ChipProps, StyledBadgeProps {
   category: Category;
@@ -19,7 +18,7 @@ export const CategoryBadge: React.FC<CategoryBadgeProps> = ({ category, emojiSiz
     ? emojisStyle !== EmojiStyle.NATIVE
       ? emojiSizes[0]
       : emojiSizes[1]
-    : 20;
+    : 14;
 
   return (
     <StyledCategoryBadge
@@ -49,43 +48,57 @@ interface StyledBadgeProps {
 }
 
 export const StyledCategoryBadge = styled(Chip)<StyledBadgeProps>`
-  color: ${({ backgroundclr }) => getFontColor(backgroundclr || "")};
-  background-color: ${({ backgroundclr }) => backgroundclr};
-  box-shadow: ${({ glow, backgroundclr }) => (glow ? `0 0 8px 0 ${backgroundclr}` : "none")};
-  border: ${({ borderclr }) => (borderclr ? `1px solid ${borderclr}` : "none")};
-  font-weight: bold;
-  font-size: 14px;
-  margin: 6px 0 0 0;
-  padding: 8px;
-  transition: 0.3s all;
-  /* animation: ${fadeIn} 0.5s ease-in; */
+  color: ${({ backgroundclr, list, theme }) =>
+    list ? (theme.darkmode ? "#f8fafc" : "#17243a") : backgroundclr || theme.primary || "#7851bf"};
+  background-color: ${({ backgroundclr, list, theme }) =>
+    list
+      ? theme.darkmode
+        ? "rgba(255, 255, 255, 0.05)"
+        : "#ffffff"
+      : backgroundclr
+        ? `${backgroundclr}22`
+        : theme.darkmode
+          ? "rgba(255,255,255,0.08)"
+          : "#f1f5f9"};
+  border: ${({ borderclr, backgroundclr, list, theme }) =>
+    borderclr
+      ? `1.5px solid ${borderclr}`
+      : list
+        ? `1.5px solid ${theme.darkmode ? "rgba(255, 255, 255, 0.15)" : "#cbd5e1"}`
+        : backgroundclr
+          ? `1px solid ${backgroundclr}35`
+          : "none"};
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 11.5px;
+  margin: 0;
+  padding: 2px 4px;
+  height: 22px;
+  transition: all 0.2s ease;
+  box-shadow: none;
 
   &:hover {
-    background-color: ${({ backgroundclr }) => `${backgroundclr} !important`};
-    opacity: ${({ list }) => list && 0.7};
+    background-color: ${({ backgroundclr, list }) =>
+      list ? "rgba(120, 81, 191, 0.1)" : backgroundclr ? `${backgroundclr}33` : undefined};
   }
 
-  &:focus-visible {
-    opacity: 0.5;
-    background-color: ${({ backgroundclr }) => backgroundclr};
+  & .MuiChip-label {
+    padding-left: 8px;
+    padding-right: 8px;
   }
 
   & .MuiChip-deleteIcon {
-    color: ${({ backgroundclr }) => getFontColor(backgroundclr || "")};
-    transition: 0.3s all;
-    width: 22px;
-    height: 22px;
+    color: inherit;
+    transition: 0.2s all;
+    width: 16px;
+    height: 16px;
     stroke: transparent;
 
-    @media (max-width: 1024px) {
-      width: 26px;
-      height: 26px;
-    }
-
     &:hover {
-      color: ${({ backgroundclr }) => getFontColor(backgroundclr || "")};
+      opacity: 0.7;
     }
   }
+
   @media print {
     box-shadow: none;
     border: 1px solid black;

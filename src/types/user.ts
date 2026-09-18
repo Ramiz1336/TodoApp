@@ -19,6 +19,8 @@ export interface User {
   profilePicture: string | null;
   emojisStyle: EmojiStyle;
   tasks: Task[];
+  /** Immutable completion events used by the performance dashboard. */
+  performanceRecords: PerformanceRecord[];
   /**
    * Stores the IDs of tasks that were deleted locally.
    * Used to ensure deletions are synced correctly across devices.
@@ -32,6 +34,17 @@ export interface User {
   theme: "system" | (string & {});
   darkmode: DarkModeOptions;
   lastSyncedAt?: Date;
+}
+
+export interface PerformanceRecord {
+  id: UUID;
+  taskId: UUID;
+  taskName: string;
+  date: string;
+  completedAt: Date;
+  color: string;
+  completionPhotoId?: string;
+  comment?: string;
 }
 
 /**
@@ -57,6 +70,21 @@ export interface Task {
    * Optional numeric position for drag-and-drop (for p2p sync)
    */
   position?: number;
+  /**
+   * Recurrence frequency.
+   */
+  recurrence?: "daily" | "weekly" | "monthly";
+  /** For daily: days of week to run (0=Sun...6=Sat), empty = every day. */
+  recurrenceDays?: number[];
+  /** For monthly: number of completions required during the month. */
+  recurrenceCount?: number;
+  /** Monthly completions recorded in the current month. */
+  recurrenceCompletedCount?: number;
+  /**
+   * The date the recurring task was last reset (date string YYYY-MM-DD).
+   */
+  lastResetDate?: string;
+  tracked?: boolean;
 }
 
 /**

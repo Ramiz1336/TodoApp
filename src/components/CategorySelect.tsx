@@ -19,7 +19,7 @@ import {
   ListSubheader,
 } from "@mui/material";
 import { Emoji } from "emoji-picker-react";
-import { CSSProperties, useContext, useState } from "react";
+import { CSSProperties, useContext, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CategoryBadge } from ".";
 import { MAX_CATEGORIES_IN_TASK } from "../constants";
@@ -49,12 +49,16 @@ export const CategorySelect: React.FC<CategorySelectProps> = ({
 }) => {
   const { user } = useContext(UserContext);
   const { categories, emojisStyle, favoriteCategories } = user;
-  const [selectedCats, setSelectedCats] = useState<Category[]>(selectedCategories);
+  const [selectedCats, setSelectedCats] = useState<Category[]>(selectedCategories ?? []);
   const [isOpen, setIsOpen] = useState<boolean>(false);
 
   const muiTheme = useTheme();
   const systemTheme = useSystemTheme();
   const { toasts } = useToasterStore();
+
+  useEffect(() => {
+    setSelectedCats(selectedCategories ?? []);
+  }, [selectedCategories]);
 
   const handleCategoryChange = (event: SelectChangeEvent<unknown>): void => {
     const selectedCategoryIds = event.target.value as UUID[];

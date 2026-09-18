@@ -165,11 +165,11 @@ const Container = styled(Box)`
 `;
 
 const StyledBottomNavigation = styled(BottomNavigation)<{ glow: boolean }>`
-  /* border-radius: 24px 24px 0 0; */
-  background: ${({ theme, glow }) => `${theme.palette.secondary.main}${glow ? "c8" : "e6"}`};
-  backdrop-filter: blur(20px);
+  background: ${({ theme }) => theme.palette.background.default};
+  border-top: 1px solid ${({ theme }) => theme.palette.divider};
+  backdrop-filter: none;
   margin: 0px 20px 0px -20px;
-  padding: 18px 10px 32px 10px;
+  padding: 8px 10px 14px;
   transition:
     0.3s background,
     color;
@@ -179,7 +179,7 @@ const StyledBottomNavigation = styled(BottomNavigation)<{ glow: boolean }>`
 `;
 
 const NavigationButton = styled(BottomNavigationAction)`
-  border-radius: 18px;
+  border-radius: 8px;
   margin: 4px;
   color: ${({ theme }) => getFontColor(theme.palette.secondary.main)};
 

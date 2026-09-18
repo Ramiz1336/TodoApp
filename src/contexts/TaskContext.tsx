@@ -5,7 +5,6 @@ interface TaskState {
   selectedTaskId: UUID | null;
   anchorEl: null | HTMLElement;
   anchorPosition: { top: number; left: number } | null;
-  expandedTasks: UUID[];
   multipleSelectedTasks: UUID[];
   search: string;
   editModalOpen: boolean;
@@ -13,16 +12,15 @@ interface TaskState {
   sortOption: SortOption;
   sortAnchorEl: null | HTMLElement;
   moveMode: boolean;
+  completionDialogOpen: boolean;
 }
 
 interface TaskActions {
   setSelectedTaskId: Dispatch<SetStateAction<UUID | null>>;
   setAnchorEl: Dispatch<SetStateAction<null | HTMLElement>>;
   setAnchorPosition: Dispatch<SetStateAction<{ top: number; left: number } | null>>;
-  setExpandedTasks: Dispatch<SetStateAction<UUID[]>>;
   setMultipleSelectedTasks: Dispatch<SetStateAction<UUID[]>>;
   setSearch: Dispatch<SetStateAction<string>>;
-  toggleShowMore: (taskId: UUID) => void;
   handleSelectTask: (taskId: UUID) => void;
   highlightMatchingText: (text: string) => ReactNode;
   setEditModalOpen: Dispatch<SetStateAction<boolean>>;
@@ -33,6 +31,8 @@ interface TaskActions {
   setSortAnchorEl: Dispatch<SetStateAction<null | HTMLElement>>;
   setMoveMode: Dispatch<SetStateAction<boolean>>;
   updateCategory: (category: Partial<Category>) => void;
+  setCompletionDialogOpen: Dispatch<SetStateAction<boolean>>;
+  handleOpenCompletionDialog: (taskId: UUID) => void;
 }
 
 export type TaskContextType = TaskState & TaskActions;

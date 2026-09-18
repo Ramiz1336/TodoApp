@@ -10,7 +10,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     <>
       <ProfileSidebar />
       {children}
-      <div style={{ marginTop: "128px" }} />
+      <div style={{ marginTop: "100px" }} />
       <BottomNav />
     </>
   );

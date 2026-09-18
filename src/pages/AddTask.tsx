@@ -1,11 +1,29 @@
 import { Category, Task } from "../types/user";
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { AddTaskButton, Container, StyledInput } from "../styles";
-import { AddTaskRounded, CancelRounded } from "@mui/icons-material";
-import { IconButton, InputAdornment, Tooltip } from "@mui/material";
+import {
+  AddTaskButton,
+  AddTaskContainer,
+  AddTaskTopBar,
+  AddTaskBackBtn,
+  AddTaskDateDisplay,
+  AddTaskTitleSection,
+  AddTaskPageTitle,
+  AddTaskPageSubtitle,
+  AddTaskAccentLine,
+  FormSection,
+  RecurringCard,
+  RecurringHeaderRow,
+  RecurringBody,
+  TrackedSubRow,
+  StyledInput,
+  EmojiPickerWrapper,
+} from "../styles";
+import { AddTaskRounded, ArrowBackRounded, CancelRounded } from "@mui/icons-material";
+import { FormControlLabel, IconButton, InputAdornment, Switch, Tooltip } from "@mui/material";
+import { RecurrenceConfig } from "../components/RecurrenceConfig";
 import { DESCRIPTION_MAX_LENGTH, TASK_NAME_MAX_LENGTH } from "../constants";
-import { ColorPicker, TopBar, CustomEmojiPicker } from "../components";
+import { ColorPicker, CustomEmojiPicker } from "../components";
 import { UserContext } from "../contexts/UserContext";
 import { useStorageState } from "../hooks/useStorageState";
 import { useTheme } from "@emotion/react";
@@ -14,6 +32,15 @@ import { ColorPalette } from "../theme/themeConfig";
 import InputThemeProvider from "../contexts/InputThemeProvider";
 import { CategorySelect } from "../components/CategorySelect";
 import { useToasterStore } from "react-hot-toast";
+import { getAppNow, localDateKey } from "../utils/testingDate";
+
+const formatAddTaskHeaderDate = (d: Date): string => {
+  const dayName = d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
+  const dayNum = d.getDate();
+  const monthName = d.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+  const year = d.getFullYear();
+  return `${dayName}  /  ${dayNum}  ${monthName}  ${year}`;
+};
 
 const AddTask = () => {
   const { user, setUser } = useContext(UserContext);
@@ -36,6 +63,42 @@ const AddTask = () => {
   );
 
   const [isDeadlineFocused, setIsDeadlineFocused] = useState<boolean>(false);
+  const [isRecurring, setIsRecurring] = useStorageState<boolean>(
+    false,
+    "isRecurring",
+    "sessionStorage",
+  );
+  const [recurrence, setRecurrence] = useStorageState<Task["recurrence"]>(
+    "daily",
+    "recurrence",
+    "sessionStorage",
+  );
+  const [recurrenceDays, setRecurrenceDays] = useStorageState<number[]>(
+    [],
+    "recurrenceDays",
+    "sessionStorage",
+  );
+  const [recurrenceCount, setRecurrenceCount] = useStorageState<number | undefined>(
+    undefined,
+    "recurrenceCount",
+    "sessionStorage",
+  );
+  const [isTracked, setIsTracked] = useStorageState<boolean>(false, "isTracked", "sessionStorage");
+
+  const handleRecurringChange = (checked: boolean) => {
+    setIsRecurring(checked);
+    if (checked) {
+      setRecurrence("daily");
+      setRecurrenceDays([]);
+      setDeadline("");
+      sessionStorage.removeItem("deadline");
+    } else {
+      setRecurrence(undefined);
+      setRecurrenceDays([]);
+      setRecurrenceCount(undefined);
+      setIsTracked(false);
+    }
+  };
 
   const n = useNavigate();
   const { toasts } = useToasterStore();
@@ -100,6 +163,7 @@ const AddTask = () => {
       return; // Do not add the task if the name or description exceeds the maximum length
     }
 
+    const today = localDateKey(getAppNow());
     const newTask: Task = {
       id: generateUUID(),
       done: false,
@@ -109,8 +173,18 @@ const AddTask = () => {
       emoji: emoji ? emoji : undefined,
       color,
       date: new Date(),
-      deadline: deadline !== "" ? new Date(deadline) : undefined,
+      deadline: !isRecurring && deadline !== "" ? new Date(deadline) : undefined,
       category: selectedCategories ? selectedCategories : [],
+      recurrence: isRecurring ? recurrence : undefined,
+      recurrenceDays: isRecurring ? recurrenceDays : undefined,
+      recurrenceCount:
+        isRecurring && (recurrence === "weekly" || recurrence === "monthly")
+          ? (recurrenceCount ?? 1)
+          : undefined,
+      recurrenceCompletedCount:
+        isRecurring && (recurrence === "weekly" || recurrence === "monthly") ? 0 : undefined,
+      tracked: isRecurring && recurrence === "daily" ? isTracked : undefined,
+      lastResetDate: isRecurring ? today : undefined,
     };
 
     setUser((prevUser) => ({
@@ -129,14 +203,41 @@ const AddTask = () => {
       },
     );
 
-    const itemsToRemove = ["name", "color", "description", "emoji", "deadline", "categories"];
+    const itemsToRemove = [
+      "name",
+      "color",
+      "description",
+      "emoji",
+      "deadline",
+      "categories",
+      "isRecurring",
+      "recurrence",
+      "recurrenceDays",
+      "recurrenceCount",
+      "recurrenceTime",
+      "isTracked",
+    ];
     itemsToRemove.map((item) => sessionStorage.removeItem(item));
   };
 
   return (
-    <>
-      <TopBar title="Add New Task" />
-      <Container>
+    <AddTaskContainer>
+      <AddTaskTopBar>
+        <AddTaskBackBtn onClick={() => n("/")} aria-label="Back to Tasks">
+          <ArrowBackRounded sx={{ fontSize: 18 }} />
+          <span>Tasks</span>
+        </AddTaskBackBtn>
+        <AddTaskDateDisplay>{formatAddTaskHeaderDate(getAppNow())}</AddTaskDateDisplay>
+      </AddTaskTopBar>
+
+      <AddTaskTitleSection>
+        <AddTaskPageTitle>Add Task</AddTaskPageTitle>
+        <AddTaskPageSubtitle>Create a new task to organize your day.</AddTaskPageSubtitle>
+      </AddTaskTitleSection>
+
+      <AddTaskAccentLine />
+
+      <EmojiPickerWrapper>
         <CustomEmojiPicker
           emoji={typeof emoji === "string" ? emoji : undefined}
           setEmoji={setEmoji}
@@ -144,8 +245,10 @@ const AddTask = () => {
           name={name}
           type="task"
         />
-        {/* fix for input colors */}
-        <InputThemeProvider>
+      </EmojiPickerWrapper>
+
+      <InputThemeProvider>
+        <FormSection>
           <StyledInput
             label="Task Name"
             name="name"
@@ -155,7 +258,7 @@ const AddTask = () => {
             onChange={handleNameChange}
             required
             error={nameError !== ""}
-            helpercolor={nameError && ColorPalette.red}
+            helpercolor={nameError ? ColorPalette.red : undefined}
             helperText={
               name === ""
                 ? undefined
@@ -164,17 +267,18 @@ const AddTask = () => {
                   : nameError
             }
           />
+
           <StyledInput
             label="Task Description"
-            name="name"
+            name="description"
             placeholder="Enter task description"
             autoComplete="off"
             value={description}
             onChange={handleDescriptionChange}
             multiline
-            rows={4}
+            rows={3}
             error={descriptionError !== ""}
-            helpercolor={descriptionError && ColorPalette.red}
+            helpercolor={descriptionError ? ColorPalette.red : undefined}
             helperText={
               description === ""
                 ? undefined
@@ -183,65 +287,112 @@ const AddTask = () => {
                   : descriptionError
             }
           />
-          <StyledInput
-            label="Task Deadline"
-            name="name"
-            placeholder="Enter deadline date"
-            type="datetime-local"
-            value={deadline}
-            onChange={handleDeadlineChange}
-            onFocus={() => setIsDeadlineFocused(true)}
-            onBlur={() => setIsDeadlineFocused(false)}
-            hidetext={(!deadline || deadline === "") && !isDeadlineFocused} // fix for label overlapping with input
-            sx={{
-              colorScheme: isDark(theme.secondary) ? "dark" : "light",
-            }}
-            slotProps={{
-              input: {
-                startAdornment:
-                  deadline && deadline !== "" ? (
-                    <InputAdornment position="start">
-                      <Tooltip title="Clear">
-                        <IconButton color="error" onClick={() => setDeadline("")}>
-                          <CancelRounded />
-                        </IconButton>
-                      </Tooltip>
-                    </InputAdornment>
-                  ) : undefined,
-              },
-            }}
-          />
+
+          {!isRecurring && (
+            <StyledInput
+              label="Task Deadline"
+              name="deadline"
+              placeholder="Enter deadline date"
+              type="datetime-local"
+              value={deadline}
+              onChange={handleDeadlineChange}
+              onFocus={() => setIsDeadlineFocused(true)}
+              onBlur={() => setIsDeadlineFocused(false)}
+              hidetext={(!deadline || deadline === "") && !isDeadlineFocused}
+              sx={{
+                colorScheme: isDark(theme.secondary) ? "dark" : "light",
+              }}
+              slotProps={{
+                input: {
+                  startAdornment:
+                    deadline && deadline !== "" ? (
+                      <InputAdornment position="start">
+                        <Tooltip title="Clear">
+                          <IconButton color="error" onClick={() => setDeadline("")}>
+                            <CancelRounded />
+                          </IconButton>
+                        </Tooltip>
+                      </InputAdornment>
+                    ) : undefined,
+                },
+              }}
+            />
+          )}
 
           {user.settings.enableCategories !== undefined && user.settings.enableCategories && (
-            <div style={{ marginBottom: "14px" }}>
-              <br />
-              <CategorySelect
-                selectedCategories={selectedCategories}
-                onCategoryChange={(categories) => setSelectedCategories(categories)}
-                width="400px"
-                fontColor={getFontColor(theme.secondary)}
-              />
-            </div>
+            <CategorySelect
+              selectedCategories={selectedCategories}
+              onCategoryChange={(categories) => setSelectedCategories(categories)}
+              width="100%"
+              fontColor={getFontColor(theme.secondary)}
+            />
           )}
-        </InputThemeProvider>
-        <ColorPicker
-          color={color}
-          width="400px"
-          onColorChange={(color) => {
-            setColor(color);
-          }}
-          fontColor={getFontColor(theme.secondary)}
-        />
-        <AddTaskButton
-          onClick={handleAddTask}
-          disabled={
-            name.length > TASK_NAME_MAX_LENGTH || description.length > DESCRIPTION_MAX_LENGTH
-          }
-        >
-          Create Task
-        </AddTaskButton>
-      </Container>
-    </>
+
+          {/* Unified Recurring Task Card */}
+          <RecurringCard>
+            <RecurringHeaderRow>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={isRecurring}
+                    onChange={(e) => handleRecurringChange(e.target.checked)}
+                    color="primary"
+                  />
+                }
+                label="Recurring task"
+              />
+            </RecurringHeaderRow>
+
+            {isRecurring && (
+              <RecurringBody>
+                <RecurrenceConfig
+                  task={{ recurrence, recurrenceDays, recurrenceCount }}
+                  onChange={(patch) => {
+                    if (patch.recurrence !== undefined) setRecurrence(patch.recurrence);
+                    if (patch.recurrenceDays !== undefined) setRecurrenceDays(patch.recurrenceDays);
+                    if ("recurrenceCount" in patch) setRecurrenceCount(patch.recurrenceCount);
+                  }}
+                  fontColor={getFontColor(theme.secondary)}
+                />
+
+                {recurrence === "daily" && (
+                  <TrackedSubRow>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={isTracked}
+                          onChange={(e) => setIsTracked(e.target.checked)}
+                          color="primary"
+                        />
+                      }
+                      label="Track in Tracked habits"
+                    />
+                  </TrackedSubRow>
+                )}
+              </RecurringBody>
+            )}
+          </RecurringCard>
+
+          <ColorPicker
+            color={color}
+            width="100%"
+            onColorChange={(newColor) => setColor(newColor)}
+            fontColor={getFontColor(theme.secondary)}
+          />
+
+          <AddTaskButton
+            onClick={handleAddTask}
+            disabled={
+              name.length === 0 ||
+              name.length > TASK_NAME_MAX_LENGTH ||
+              description.length > DESCRIPTION_MAX_LENGTH
+            }
+          >
+            Create Task
+          </AddTaskButton>
+        </FormSection>
+      </InputThemeProvider>
+    </AddTaskContainer>
   );
 };
 

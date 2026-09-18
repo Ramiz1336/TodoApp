@@ -1,8 +1,7 @@
-import React, { memo, useContext } from "react";
-import { URL_REGEX, DESCRIPTION_SHORT_LENGTH } from "../../constants";
+import React, { memo } from "react";
+import { URL_REGEX } from "../../constants";
 import { Task } from "../../types/user";
 import { Button, Tooltip } from "@mui/material";
-import { TaskContext } from "../../contexts/TaskContext";
 import styled from "@emotion/styled";
 import { getFontColor } from "../../utils";
 import { LinkOffRounded } from "@mui/icons-material";
@@ -11,7 +10,7 @@ interface RenderTaskDescriptionProps {
   task: Task;
   textHighlighter?: (text: string) => React.ReactNode;
   enableLinks?: boolean;
-  enableMoreButton?: boolean;
+  fullDescription?: boolean;
 }
 
 export const RenderTaskDescription = memo(
@@ -19,85 +18,16 @@ export const RenderTaskDescription = memo(
     task,
     textHighlighter = (text) => text,
     enableLinks = true,
-    enableMoreButton = false,
+    fullDescription = false,
   }: RenderTaskDescriptionProps) => {
-    const { expandedTasks, toggleShowMore } = useContext(TaskContext);
     if (!task.description) return null;
-
-    const isExpanded = enableMoreButton ? expandedTasks.includes(task.id) : false;
 
     const { description, color } = task;
 
     // split the description into parts preserving links
     const parts = description.split(URL_REGEX);
 
-    // calculate effective length where urls count as their domain name length
-    const effectiveLength = parts.reduce((length, part, index) => {
-      const isURL = index % 2 === 1;
-      if (isURL) {
-        try {
-          const domain = new URL(part).hostname.replace("www.", "");
-          return length + domain.length;
-        } catch {
-          return length + part.length;
-        }
-      }
-      return length + part.length;
-    }, 0);
-
-    const shouldShowButton = enableMoreButton && effectiveLength > DESCRIPTION_SHORT_LENGTH;
-
-    let truncatedParts = parts;
-    let showMore = false;
-
-    if (!isExpanded && effectiveLength > DESCRIPTION_SHORT_LENGTH) {
-      let currentLength = 0;
-      let truncateIndex = -1;
-
-      // find where to truncate while keeping links intact
-      for (let i = 0; i < parts.length; i++) {
-        const isURL = i % 2 === 1;
-        const part = parts[i];
-
-        if (isURL) {
-          // calculate urls effective displayed length (domain name length)
-          let urlEffectiveLength;
-          try {
-            const domain = new URL(part).hostname.replace("www.", "");
-            urlEffectiveLength = domain.length;
-          } catch {
-            urlEffectiveLength = part.length;
-          }
-
-          if (currentLength < DESCRIPTION_SHORT_LENGTH) {
-            currentLength += urlEffectiveLength;
-            if (currentLength > DESCRIPTION_SHORT_LENGTH) {
-              truncateIndex = i;
-              break;
-            }
-          } else {
-            truncateIndex = i;
-            break;
-          }
-        } else {
-          // for text parts
-          if (currentLength + part.length > DESCRIPTION_SHORT_LENGTH) {
-            truncateIndex = i;
-            const remainingLength = DESCRIPTION_SHORT_LENGTH - currentLength;
-            parts[i] = part.slice(0, remainingLength);
-            break;
-          }
-          currentLength += part.length;
-        }
-      }
-
-      if (truncateIndex !== -1) {
-        truncatedParts = parts.slice(0, truncateIndex + 1);
-        showMore = true;
-      }
-    }
-
-    const descriptionWithLinks = truncatedParts.map((part, index) => {
+    const descriptionWithLinks = parts.map((part, index) => {
       const isURL = index % 2 === 1;
       return isURL ? (
         <DescriptionLink
@@ -114,14 +44,8 @@ export const RenderTaskDescription = memo(
 
     return (
       <>
-        <ScreenDescription title={!isExpanded && shouldShowButton ? task.description : undefined}>
+        <ScreenDescription fullDescription={fullDescription} title={task.description}>
           {descriptionWithLinks}
-          {!isExpanded && showMore && !task.done && "..."}
-          {shouldShowButton && !task.done && (
-            <ShowMoreBtn onClick={() => toggleShowMore(task.id)} clr={color}>
-              {isExpanded ? "Show Less" : "Show More"}
-            </ShowMoreBtn>
-          )}
         </ScreenDescription>
         <PrintDescription>{task.description}</PrintDescription>
       </>
@@ -195,24 +119,6 @@ const FaviconImage = styled.img`
   user-select: none;
 `;
 
-const ShowMoreBtn = styled(Button)<{ clr: string }>`
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: bolder;
-  transition: 0.3s color;
-  color: ${({ clr }) => getFontColor(clr)};
-  text-shadow: ${({ clr }) => `0 0 8px ${getFontColor(clr) + 45}`};
-  text-transform: capitalize;
-  border-radius: 6px;
-  padding: 0 4px;
-  margin: 0 4px;
-  @media print {
-    color: black;
-  }
-`;
-
 const StyledDescriptionLink = styled(Button)<{ clr: string }>`
   margin: 0;
   color: ${({ clr }) => getFontColor(clr)};
@@ -238,7 +144,20 @@ const StyledDescriptionLink = styled(Button)<{ clr: string }>`
   }
 `;
 
-const ScreenDescription = styled.div`
+const ScreenDescription = styled.div<{ fullDescription: boolean }>`
+  display: ${({ fullDescription }) => (fullDescription ? "block" : "-webkit-box")};
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: ${({ fullDescription }) => (fullDescription ? "normal" : "normal")};
+  -webkit-line-clamp: ${({ fullDescription }) => (fullDescription ? "unset" : "1")};
+  -webkit-box-orient: vertical;
+
+  & > * {
+    max-width: 100%;
+  }
   @media print {
     display: none !important;
   }

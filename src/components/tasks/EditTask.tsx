@@ -4,8 +4,10 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
+  FormControlLabel,
   IconButton,
   InputAdornment,
+  Switch,
   TextField,
   TextFieldProps,
   Tooltip,
@@ -20,6 +22,8 @@ import { formatDate, showToast, timeAgo } from "../../utils";
 import { useTheme } from "@emotion/react";
 import { ColorPalette } from "../../theme/themeConfig";
 import { CategorySelect } from "../CategorySelect";
+import { RecurrenceConfig } from "../RecurrenceConfig";
+import { getAppNow, localDateKey } from "../../utils/testingDate";
 
 const DEFAULT_EDIT_TASK_SUBTITLE = "Edit the details of the task.";
 
@@ -60,7 +64,7 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
   // Effect hook to update the editedTask when the task prop changes.
   useEffect(() => {
     setEditedTask(task);
-    setSelectedCategories(task?.category as Category[]);
+    setSelectedCategories(task?.category ?? []);
     if (task?.lastSave) {
       setEditLastSaveLabel(
         `Last edited ${timeAgo(new Date(task.lastSave))} • ${formatDate(new Date(task.lastSave))}`,
@@ -92,8 +96,19 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
             color: editedTask.color,
             emoji: editedTask.emoji || undefined,
             description: editedTask.description || undefined,
-            deadline: editedTask.deadline || undefined,
+            deadline: editedTask.recurrence ? undefined : editedTask.deadline || undefined,
             category: editedTask.category || undefined,
+            recurrence: editedTask.recurrence,
+            recurrenceDays: editedTask.recurrence ? editedTask.recurrenceDays : undefined,
+            recurrenceCount:
+              editedTask.recurrence === "weekly" || editedTask.recurrence === "monthly"
+                ? (editedTask.recurrenceCount ?? 1)
+                : undefined,
+            recurrenceCompletedCount:
+              editedTask.recurrence === "weekly" || editedTask.recurrence === "monthly"
+                ? editedTask.recurrenceCompletedCount
+                : undefined,
+            lastResetDate: editedTask.lastResetDate,
             lastSave: new Date(),
           };
         }
@@ -115,7 +130,7 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
   const handleCancel = () => {
     onClose();
     setEditedTask(task);
-    setSelectedCategories(task?.category as Category[]);
+    setSelectedCategories(task?.category ?? []);
   };
 
   useEffect(() => {
@@ -207,53 +222,106 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
                 : `${editedTask?.description?.length}/${DESCRIPTION_MAX_LENGTH}`
           }
         />
-        <StyledInput
-          label="Deadline date"
-          name="deadline"
-          type="datetime-local"
-          value={
-            editedTask?.deadline
-              ? new Date(editedTask.deadline).toLocaleString("sv").replace(" ", "T").slice(0, 16)
-              : ""
-          }
-          onChange={handleInputChange}
-          slotProps={{
-            inputLabel: {
-              shrink: true,
-            },
-            input: {
-              startAdornment: editedTask?.deadline ? (
-                <InputAdornment position="start">
-                  <Tooltip title="Clear">
-                    <IconButton
-                      color="error"
-                      onClick={() => {
-                        setEditedTask((prevTask) => ({
-                          ...(prevTask as Task),
-                          deadline: undefined,
-                        }));
-                      }}
-                    >
-                      <CancelRounded />
-                    </IconButton>
-                  </Tooltip>
-                </InputAdornment>
-              ) : undefined,
-            },
-          }}
-          sx={{
-            colorScheme: theme.darkmode ? "dark" : "light",
-            " & .MuiInputBase-root": {
-              transition: ".3s all",
-            },
-          }}
-        />
-
+        {!editedTask?.recurrence && (
+          <StyledInput
+            label="Deadline date"
+            name="deadline"
+            type="datetime-local"
+            value={
+              editedTask?.deadline
+                ? new Date(editedTask.deadline).toLocaleString("sv").replace(" ", "T").slice(0, 16)
+                : ""
+            }
+            onChange={handleInputChange}
+            slotProps={{
+              inputLabel: {
+                shrink: true,
+              },
+              input: {
+                startAdornment: editedTask?.deadline ? (
+                  <InputAdornment position="start">
+                    <Tooltip title="Clear">
+                      <IconButton
+                        color="error"
+                        onClick={() => {
+                          setEditedTask((prevTask) => ({
+                            ...(prevTask as Task),
+                            deadline: undefined,
+                          }));
+                        }}
+                      >
+                        <CancelRounded />
+                      </IconButton>
+                    </Tooltip>
+                  </InputAdornment>
+                ) : undefined,
+              },
+            }}
+            sx={{
+              colorScheme: theme.darkmode ? "dark" : "light",
+              " & .MuiInputBase-root": {
+                transition: ".3s all",
+              },
+            }}
+          />
+        )}
         {settings.enableCategories !== undefined && settings.enableCategories && (
           <CategorySelect
             fontColor={theme.darkmode ? ColorPalette.fontLight : ColorPalette.fontDark}
             selectedCategories={selectedCategories}
             onCategoryChange={(categories) => setSelectedCategories(categories)}
+          />
+        )}
+        <FormControlLabel
+          sx={{ mt: "8px", ml: "2px" }}
+          control={
+            <Switch
+              checked={!!editedTask?.recurrence}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setEditedTask((prev) => ({
+                  ...(prev as Task),
+                  recurrence: checked ? "daily" : undefined,
+                  recurrenceDays: checked ? [] : undefined,
+                  recurrenceCount: undefined,
+                  recurrenceCompletedCount: undefined,
+                  lastResetDate: checked
+                    ? (() => {
+                        return localDateKey(getAppNow());
+                      })()
+                    : undefined,
+                  deadline: checked ? undefined : (prev as Task).deadline,
+                }));
+              }}
+              color="primary"
+            />
+          }
+          label="Recurring task"
+        />
+        {editedTask?.recurrence && (
+          <RecurrenceConfig
+            task={{
+              recurrence: editedTask.recurrence,
+              recurrenceDays: editedTask.recurrenceDays,
+              recurrenceCount: editedTask.recurrenceCount,
+            }}
+            onChange={(patch) => setEditedTask((prev) => ({ ...(prev as Task), ...patch }))}
+            fontColor={theme.darkmode ? ColorPalette.fontLight : ColorPalette.fontDark}
+          />
+        )}
+        {editedTask?.recurrence === "daily" && (
+          <FormControlLabel
+            sx={{ mt: "4px", ml: "2px" }}
+            control={
+              <Switch
+                checked={!!editedTask.tracked}
+                onChange={(e) =>
+                  setEditedTask((prev) => ({ ...(prev as Task), tracked: e.target.checked }))
+                }
+                color="primary"
+              />
+            }
+            label="Track this task"
           />
         )}
         <div

@@ -54,7 +54,7 @@ export default defineConfig({
   ],
   resolve: {
     extensions: [".tsx", ".ts", ".jsx", ".js", ".json", ".mjs", ".mts"],
-    dedupe: ["react", "react-dom", "@emotion/react"],
+    dedupe: ["react", "react-dom", "@emotion/react", "@emotion/styled"],
   },
   build: {
     rollupOptions: {

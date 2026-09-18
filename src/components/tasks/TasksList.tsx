@@ -3,11 +3,10 @@ import {
   CancelRounded,
   Close,
   Delete,
-  DeleteRounded,
   DoneAll,
   Search,
   RadioButtonChecked,
-  MoreVert,
+  MoreHoriz,
   MoveUpRounded,
 } from "@mui/icons-material";
 import {
@@ -19,9 +18,10 @@ import {
   IconButton,
   InputAdornment,
   Tooltip,
+  Typography,
 } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState, memo, useRef } from "react";
-import { CategoryBadge, CustomDialogTitle, EditTask, TaskItem } from "..";
+import { CustomDialogTitle, EditTask, TaskItem } from "..";
 import { TaskContext } from "../../contexts/TaskContext";
 import { UserContext } from "../../contexts/UserContext";
 import { useResponsiveDisplay } from "../../hooks/useResponsiveDisplay";
@@ -29,7 +29,7 @@ import { useStorageState } from "../../hooks/useStorageState";
 import { DialogBtn } from "../../styles";
 import { ColorPalette } from "../../theme/themeConfig";
 import type { Category, Task, UUID } from "../../types/user";
-import { getFontColor, showToast } from "../../utils";
+import { getFontColor, recordTaskCompletions, showToast } from "../../utils";
 import {
   NoTasks,
   RingAlarm,
@@ -44,6 +44,9 @@ import { TaskMenu } from "./TaskMenu";
 import { TaskIcon } from "../TaskIcon";
 import { useToasterStore } from "react-hot-toast";
 import { TaskSort } from "./TaskSort";
+import { getAppNow } from "../../utils/testingDate";
+import { completeTask } from "../../utils/taskRecurrence";
+import { isTaskScheduledOnDate, isWeeklyTaskVisibleOnDate } from "../../utils/taskSchedule";
 import {
   DndContext,
   DragEndEvent,
@@ -62,24 +65,28 @@ import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifi
 import DisabledThemeProvider from "../../contexts/DisabledThemeProvider";
 
 const TaskMenuButton = memo(
-  ({ task, onClick }: { task: Task; onClick: (event: React.MouseEvent<HTMLElement>) => void }) => (
+  ({
+    onClick,
+    open = false,
+  }: {
+    task?: Task;
+    onClick: (event: React.MouseEvent<HTMLElement>) => void;
+    open?: boolean;
+  }) => (
     <IconButton
       id="task-menu-button"
       aria-label="Task Menu"
       aria-controls="task-menu"
       aria-haspopup="true"
-      aria-expanded={Boolean(task)}
+      aria-expanded={open}
       onClick={onClick}
-      sx={{ color: getFontColor(task.color) }}
+      sx={{ color: "inherit", opacity: 0.65, "&:hover": { opacity: 1 }, p: "4px" }}
     >
-      <MoreVert />
+      <MoreHoriz sx={{ fontSize: 22 }} />
     </IconButton>
   ),
 );
 
-/**
- * Component to display a list of tasks.
- */
 export const TasksList: React.FC = () => {
   const { user, setUser } = useContext(UserContext);
   const {
@@ -132,11 +139,8 @@ export const TasksList: React.FC = () => {
     [],
   );
 
-  // Handler for clicking the more options button in a task
   const handleClick = (event: React.MouseEvent<HTMLElement>, taskId: UUID) => {
     const target = event.target as HTMLElement;
-
-    // if clicking inside a task link, show native context menu and skip custom menu.
     if (target.closest("#task-description-link")) {
       return;
     }
@@ -149,13 +153,8 @@ export const TasksList: React.FC = () => {
       top: event.clientY,
       left: event.clientX,
     });
-
-    // if (!isMobile && !expandedTasks.includes(taskId)) {
-    //   toggleShowMore(taskId);
-    // }
   };
 
-  // focus search input on ctrl + /
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === "/") {
@@ -170,11 +169,9 @@ export const TasksList: React.FC = () => {
 
   const reorderTasks = useCallback(
     (tasks: Task[]): Task[] => {
-      // Separate tasks into pinned and unpinned
       let pinnedTasks = tasks.filter((task) => task.pinned);
       let unpinnedTasks = tasks.filter((task) => !task.pinned);
 
-      // Filter tasks based on the selected category
       if (selectedCatId !== undefined) {
         const categoryFilter = (task: Task) =>
           task.category?.some((category) => category.id === selectedCatId) ?? false;
@@ -182,7 +179,6 @@ export const TasksList: React.FC = () => {
         pinnedTasks = pinnedTasks.filter(categoryFilter);
       }
 
-      // Filter tasks based on the search input
       const searchLower = search.toLowerCase();
       const searchFilter = (task: Task) =>
         task.name.toLowerCase().includes(searchLower) ||
@@ -190,7 +186,6 @@ export const TasksList: React.FC = () => {
       unpinnedTasks = unpinnedTasks.filter(searchFilter);
       pinnedTasks = pinnedTasks.filter(searchFilter);
 
-      // Sort tasks based on the selected sort option
       const sortTasks = (tasks: Task[]) => {
         switch (sortOption) {
           case "dateCreated":
@@ -221,7 +216,6 @@ export const TasksList: React.FC = () => {
       unpinnedTasks = sortTasks(unpinnedTasks);
       pinnedTasks = sortTasks(pinnedTasks);
 
-      // Move done tasks to bottom if the setting is enabled
       if (user.settings?.doneToBottom) {
         const doneTasks = unpinnedTasks.filter((task) => task.done);
         const notDoneTasks = unpinnedTasks.filter((task) => !task.done);
@@ -239,12 +233,13 @@ export const TasksList: React.FC = () => {
     if (!selectedTaskId) {
       return;
     }
-    const updatedTasks = user.tasks.filter((task) => task.id !== selectedTaskId);
     setUser((prevUser) => ({
       ...prevUser,
-      tasks: updatedTasks,
+      tasks: prevUser.tasks.filter((task) => task.id !== selectedTaskId),
+      deletedTasks: (prevUser.deletedTasks ?? []).includes(selectedTaskId)
+        ? (prevUser.deletedTasks ?? [])
+        : [...(prevUser.deletedTasks ?? []), selectedTaskId],
     }));
-    user.deletedTasks.push(selectedTaskId);
     setDeleteDialogOpen(false);
     showToast(
       <div>
@@ -262,22 +257,22 @@ export const TasksList: React.FC = () => {
   }, [selectedTaskId, deleteDialogOpen, user.tasks]);
 
   const cancelDeleteTask = () => {
-    // Cancels the delete task operation
     setDeleteDialogOpen(false);
   };
 
   const handleMarkSelectedAsDone = () => {
-    setUser((prevUser) => ({
-      ...prevUser,
-      tasks: prevUser.tasks.map((task) => {
-        if (multipleSelectedTasks.includes(task.id)) {
-          // Mark the task as done if selected
-          return { ...task, done: true, lastSave: new Date() };
-        }
-        return task;
-      }),
-    }));
-    // Clear the selected task IDs after the operation
+    setUser((prevUser) => {
+      const selectedTasks = prevUser.tasks.filter((task) =>
+        multipleSelectedTasks.includes(task.id),
+      );
+      const updatedTasks = prevUser.tasks.map((task) =>
+        multipleSelectedTasks.includes(task.id) ? completeTask(task) : task,
+      );
+      return recordTaskCompletions(
+        { ...prevUser, tasks: updatedTasks },
+        selectedTasks.filter((task) => !task.done),
+      );
+    });
     setMultipleSelectedTasks([]);
   };
 
@@ -297,7 +292,6 @@ export const TasksList: React.FC = () => {
       }
     });
 
-    // Calculate category counts
     const counts: { [categoryId: UUID]: number } = {};
     uniqueCategories.forEach((category) => {
       const categoryTasks = tasks.filter((task) =>
@@ -306,7 +300,6 @@ export const TasksList: React.FC = () => {
       counts[category.id] = categoryTasks.length;
     });
 
-    // sort categories by count (descending) then by name (ascending) if counts are equal
     uniqueCategories.sort((a, b) => {
       const countA = counts[a.id] || 0;
       const countB = counts[b.id] || 0;
@@ -329,7 +322,7 @@ export const TasksList: React.FC = () => {
       }
 
       const overdueTasks = tasks.filter(
-        (task) => task.deadline && new Date() > new Date(task.deadline) && !task.done,
+        (task) => task.deadline && getAppNow() > new Date(task.deadline) && !task.done,
       );
 
       if (overdueTasks.length > 0) {
@@ -361,7 +354,6 @@ export const TasksList: React.FC = () => {
 
   useEffect(() => {
     checkOverdueTasks(user.tasks);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const dndKitSensors = useSensors(
@@ -377,13 +369,17 @@ export const TasksList: React.FC = () => {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = orderedTasks.findIndex((task) => task.id === active.id);
-    const newIndex = orderedTasks.findIndex((task) => task.id === over.id);
+    const allTasksInCustomOrder = [...user.tasks].sort((a, b) => {
+      if (a.position != null && b.position != null) return a.position - b.position;
+      if (a.position == null && b.position != null) return 1;
+      if (a.position != null && b.position == null) return -1;
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
+    const oldIndex = allTasksInCustomOrder.findIndex((task) => task.id === active.id);
+    const newIndex = allTasksInCustomOrder.findIndex((task) => task.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    // calculate new positions for all tasks in the new order
-    const newOrdered = arrayMove(orderedTasks, oldIndex, newIndex);
-    // assign position as index
+    const newOrdered = arrayMove(allTasksInCustomOrder, oldIndex, newIndex);
     const updatedTasks = user.tasks.map((task) => {
       const idx = newOrdered.findIndex((t) => t.id === task.id);
       return idx !== -1 ? { ...task, position: idx, lastSave: new Date() } : task;
@@ -401,97 +397,175 @@ export const TasksList: React.FC = () => {
     setActiveDragId(event.active.id as string);
   };
 
+  const renderTask = (task: Task) => (
+    <TaskItem
+      key={task.id}
+      task={task}
+      features={{
+        enableLinks: true,
+        enableGlow: user.settings.enableGlow,
+        enableSelection: true,
+        enableMoveMode: true,
+      }}
+      selection={{
+        selectedIds: multipleSelectedTasks,
+        onSelect: handleSelectTask,
+        onDeselect: (taskId) =>
+          setMultipleSelectedTasks((prevTasks) => prevTasks.filter((id) => id !== taskId)),
+      }}
+      onContextMenu={(e: React.MouseEvent<Element>) => {
+        handleClick(e as unknown as React.MouseEvent<HTMLElement>, task.id);
+      }}
+      actions={
+        <TaskMenuButton
+          task={task}
+          open={open && selectedTaskId === task.id}
+          onClick={(event) => handleClick(event, task.id)}
+        />
+      }
+      blur={selectedTaskId !== task.id && open && !isMobile}
+      textHighlighter={highlightMatchingText}
+    />
+  );
+
+  const renderSection = (title: string, sectionTasks: Task[]) =>
+    sectionTasks.length > 0 ? (
+      <Box key={title} sx={{ mt: 2.5 }}>
+        <Typography
+          component="h2"
+          sx={{
+            fontWeight: 800,
+            fontSize: "18px",
+            mb: 1.2,
+            color: "var(--text-dark)",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          {title} {title === "Pinned" ? "📌" : ""}
+        </Typography>
+        {sectionTasks.map(renderTask)}
+      </Box>
+    ) : null;
+
+  const currentWeekday = getAppNow().getDay();
+  const pinnedTasks = orderedTasks.filter((task) => task.pinned && !task.done);
+  const activeDailyTasks = orderedTasks.filter((task) => {
+    if (task.done || task.recurrence === "monthly" || task.pinned) {
+      return false;
+    }
+
+    if (task.recurrence === "weekly") {
+      return isTaskScheduledOnDate(task, getAppNow());
+    }
+
+    if (task.recurrence !== "daily" || !task.recurrenceDays?.length) {
+      return true;
+    }
+
+    return task.recurrenceDays.includes(currentWeekday);
+  });
+  const activeWeeklyTasks = orderedTasks.filter(
+    (task) =>
+      !task.pinned &&
+      isWeeklyTaskVisibleOnDate(task, getAppNow()) &&
+      !isTaskScheduledOnDate(task, getAppNow()),
+  );
+  const activeMonthlyTasks = orderedTasks.filter(
+    (task) => !task.pinned && !task.done && task.recurrence === "monthly",
+  );
+  const completedTasks = orderedTasks.filter((task) => task.done && task.recurrence !== "weekly");
+
   return (
     <>
       <TaskMenu />
-      <TasksContainer style={{ marginTop: user.settings.showProgressBar ? "0" : "24px" }}>
-        {user.tasks.length > 0 && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: "10px", mb: "8px" }}>
-            <DisabledThemeProvider>
-              <SearchInput
-                inputRef={searchRef}
-                color="primary"
-                placeholder="Search for task..."
-                autoComplete="off"
-                value={search}
-                disabled={moveMode}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                }}
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Search sx={{ color: "white", opacity: moveMode ? 0.5 : undefined }} />
-                      </InputAdornment>
-                    ),
-                    endAdornment: search ? (
-                      <InputAdornment position="end">
-                        <SearchClear
-                          color={
-                            orderedTasks.length === 0 && user.tasks.length > 0 ? "error" : "default"
-                          }
-                          onClick={() => setSearch("")}
-                        >
-                          <Close
-                            sx={{
-                              color:
-                                orderedTasks.length === 0 && user.tasks.length > 0
-                                  ? `${ColorPalette.red} !important`
-                                  : "white",
-                              transition: ".3s all",
-                            }}
-                          />
-                        </SearchClear>
-                      </InputAdornment>
-                    ) : undefined,
-                  },
-                }}
-              />
-              <TaskSort />
-            </DisabledThemeProvider>
-          </Box>
-        )}
-        {categories !== undefined && categories?.length > 0 && user.settings.enableCategories && (
+      <TasksContainer style={{ marginTop: "4px" }}>
+        {/* Categories Chip Row with exact mockup look: All is filled purple, others are clean pill outlines */}
+        {user.settings.enableCategories && (
           <CategoriesListContainer>
-            {categories?.map((cat) => (
-              <CategoryBadge
-                key={cat.id}
-                category={cat}
-                emojiSizes={[24, 20]}
-                list={"true"}
-                label={
-                  <div>
-                    <span style={{ fontWeight: "bold" }}>{cat.name}</span>
-                    <span
-                      style={{
-                        fontSize: "14px",
-                        opacity: 0.9,
-                        marginLeft: "4px",
-                      }}
-                    >
+            <Button
+              onClick={() => setSelectedCatId(undefined)}
+              sx={{
+                borderRadius: "999px",
+                textTransform: "none",
+                fontSize: "14px",
+                fontWeight: 600,
+                px: 2.2,
+                py: 0.6,
+                minHeight: "36px",
+                backgroundColor:
+                  selectedCatId === undefined
+                    ? theme.primary || "#7851bf"
+                    : theme.darkmode
+                      ? "rgba(255,255,255,0.05)"
+                      : "#ffffff",
+                color:
+                  selectedCatId === undefined ? "#ffffff" : theme.darkmode ? "#f8fafc" : "#1e293b",
+                border: "1.5px solid",
+                borderColor:
+                  selectedCatId === undefined
+                    ? theme.primary || "#7851bf"
+                    : theme.darkmode
+                      ? "rgba(255,255,255,0.2)"
+                      : "#1e293b",
+                boxShadow: "none",
+                "&:hover": {
+                  backgroundColor:
+                    selectedCatId === undefined
+                      ? theme.primary || "#7851bf"
+                      : "rgba(0, 0, 0, 0.04)",
+                },
+              }}
+            >
+              All
+            </Button>
+            {categories?.map((cat) => {
+              const isSelected = selectedCatId === cat.id;
+              return (
+                <Button
+                  key={cat.id}
+                  onClick={() => setSelectedCatId(isSelected ? undefined : cat.id)}
+                  sx={{
+                    borderRadius: "999px",
+                    textTransform: "none",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    px: 2.2,
+                    py: 0.6,
+                    minHeight: "36px",
+                    backgroundColor: isSelected
+                      ? theme.primary || "#7851bf"
+                      : theme.darkmode
+                        ? "rgba(255,255,255,0.05)"
+                        : "#ffffff",
+                    color: isSelected ? "#ffffff" : theme.darkmode ? "#f8fafc" : "#1e293b",
+                    border: "1.5px solid",
+                    borderColor: isSelected
+                      ? theme.primary || "#7851bf"
+                      : theme.darkmode
+                        ? "rgba(255,255,255,0.2)"
+                        : "#1e293b",
+                    boxShadow: "none",
+                    "&:hover": {
+                      backgroundColor: isSelected
+                        ? theme.primary || "#7851bf"
+                        : "rgba(0, 0, 0, 0.04)",
+                    },
+                  }}
+                >
+                  {cat.name}
+                  {categoryCounts[cat.id] != null && categoryCounts[cat.id] > 0 && (
+                    <span style={{ fontSize: "11px", opacity: 0.8, marginLeft: "4px" }}>
                       ({categoryCounts[cat.id]})
                     </span>
-                  </div>
-                }
-                onClick={() =>
-                  selectedCatId !== cat.id ? setSelectedCatId(cat.id) : setSelectedCatId(undefined)
-                }
-                onDelete={selectedCatId === cat.id ? () => setSelectedCatId(undefined) : undefined}
-                deleteIcon={<CancelRounded />}
-                sx={{
-                  boxShadow: "none",
-                  display:
-                    selectedCatId === undefined || selectedCatId === cat.id
-                      ? "inline-flex"
-                      : "none",
-                  p: "20px 14px",
-                  fontSize: "16px",
-                }}
-              />
-            ))}
+                  )}
+                </Button>
+              );
+            })}
           </CategoriesListContainer>
         )}
+
         {multipleSelectedTasks.length > 0 && (
           <TaskActionContainer>
             <div>
@@ -507,7 +581,6 @@ export const TasksList: React.FC = () => {
                 )}
               </span>
             </div>
-            {/* TODO: add more features */}
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <Tooltip title="Mark selected as done">
                 <IconButton
@@ -531,6 +604,7 @@ export const TasksList: React.FC = () => {
             </div>
           </TaskActionContainer>
         )}
+
         {moveMode && (
           <TaskActionContainer>
             <div>
@@ -544,22 +618,8 @@ export const TasksList: React.FC = () => {
             </Button>
           </TaskActionContainer>
         )}
-        {search && orderedTasks.length > 1 && user.tasks.length > 0 && (
-          <div
-            style={{
-              textAlign: "center",
-              fontSize: "18px",
-              opacity: 0.9,
-              marginTop: "12px",
-            }}
-          >
-            <b>
-              Found {orderedTasks.length} task
-              {orderedTasks.length > 1 ? "s" : ""}
-            </b>
-          </div>
-        )}
-        {/* FIXME: dry */}
+
+        {/* Task Sections */}
         {user.tasks.length !== 0 ? (
           moveMode ? (
             <DndContext
@@ -598,6 +658,7 @@ export const TasksList: React.FC = () => {
                     actions={
                       <TaskMenuButton
                         task={task}
+                        open={open && selectedTaskId === task.id}
                         onClick={(event) => handleClick(event, task.id)}
                       />
                     }
@@ -611,7 +672,6 @@ export const TasksList: React.FC = () => {
                   easing: "ease-in-out",
                 }}
               >
-                {/* DRAG PREVIEW */}
                 {activeDragId ? (
                   <TaskItem
                     task={orderedTasks.find((t) => t.id === activeDragId)!}
@@ -625,6 +685,7 @@ export const TasksList: React.FC = () => {
                     actions={
                       <TaskMenuButton
                         task={orderedTasks.find((t) => t.id === activeDragId)!}
+                        open={false}
                         onClick={(event) =>
                           handleClick(event, orderedTasks.find((t) => t.id === activeDragId)!.id)
                         }
@@ -635,34 +696,13 @@ export const TasksList: React.FC = () => {
               </DragOverlay>
             </DndContext>
           ) : (
-            orderedTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                features={{
-                  enableLinks: true,
-                  enableGlow: user.settings.enableGlow,
-                  enableSelection: true,
-                  enableMoveMode: true,
-                }}
-                selection={{
-                  selectedIds: multipleSelectedTasks,
-                  onSelect: handleSelectTask,
-                  onDeselect: (taskId) =>
-                    setMultipleSelectedTasks((prevTasks) =>
-                      prevTasks.filter((id) => id !== taskId),
-                    ),
-                }}
-                onContextMenu={(e: React.MouseEvent<Element>) => {
-                  handleClick(e as unknown as React.MouseEvent<HTMLElement>, task.id);
-                }}
-                actions={
-                  <TaskMenuButton task={task} onClick={(event) => handleClick(event, task.id)} />
-                }
-                blur={selectedTaskId !== task.id && open && !isMobile}
-                textHighlighter={highlightMatchingText}
-              />
-            ))
+            <>
+              {renderSection("Pinned", pinnedTasks)}
+              {renderSection("Daily", activeDailyTasks)}
+              {renderSection("Weekly", activeWeeklyTasks)}
+              {renderSection("Monthly", activeMonthlyTasks)}
+              {renderSection("Completed", completedTasks)}
+            </>
           )
         ) : (
           <NoTasks>
@@ -671,6 +711,7 @@ export const TasksList: React.FC = () => {
             Click on the <span>+</span> button to add one
           </NoTasks>
         )}
+
         {search && orderedTasks.length === 0 && user.tasks.length > 0 ? (
           <TaskNotFound>
             <b>No tasks found</b>
@@ -681,6 +722,70 @@ export const TasksList: React.FC = () => {
             </div>
           </TaskNotFound>
         ) : null}
+
+        {/* Search Bar at the bottom of the list matching exact mockup: pill input with search icon + Showing X tasks */}
+        {user.tasks.length > 0 && (
+          <Box sx={{ mt: 4, mb: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <DisabledThemeProvider>
+                <SearchInput
+                  inputRef={searchRef}
+                  color="primary"
+                  placeholder="Search tasks..."
+                  autoComplete="off"
+                  value={search}
+                  disabled={moveMode}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                  }}
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Search sx={{ color: "var(--text-muted)", fontSize: 22 }} />
+                        </InputAdornment>
+                      ),
+                      endAdornment: search ? (
+                        <InputAdornment position="end">
+                          <SearchClear
+                            color={
+                              orderedTasks.length === 0 && user.tasks.length > 0
+                                ? "error"
+                                : "default"
+                            }
+                            onClick={() => setSearch("")}
+                          >
+                            <Close
+                              sx={{
+                                color:
+                                  orderedTasks.length === 0 && user.tasks.length > 0
+                                    ? `${ColorPalette.red} !important`
+                                    : "var(--text-muted)",
+                                fontSize: 18,
+                              }}
+                            />
+                          </SearchClear>
+                        </InputAdornment>
+                      ) : undefined,
+                    },
+                  }}
+                />
+                <TaskSort />
+              </DisabledThemeProvider>
+            </Box>
+            <Typography
+              sx={{
+                textAlign: "center",
+                fontSize: "13px",
+                color: "var(--text-muted)",
+                mt: 1.5,
+              }}
+            >
+              Showing {orderedTasks.length} task{orderedTasks.length !== 1 ? "s" : ""}
+            </Typography>
+          </Box>
+        )}
+
         <EditTask
           open={editModalOpen}
           task={user.tasks.find((task) => task.id === selectedTaskId)}
@@ -709,23 +814,17 @@ export const TasksList: React.FC = () => {
             Cancel
           </DialogBtn>
           <DialogBtn onClick={confirmDeleteTask} color="error">
-            <DeleteRounded /> &nbsp; Confirm Delete
+            Delete
           </DialogBtn>
         </DialogActions>
       </Dialog>
-      <Dialog open={deleteSelectedOpen}>
+      <Dialog open={deleteSelectedOpen} onClose={() => setDeleteSelectedOpen(false)}>
         <CustomDialogTitle
-          title="Delete selected tasks"
-          subTitle="Confirm to delete selected tasks"
-          icon={<DeleteRounded />}
+          title="Delete Selected Tasks"
+          subTitle="Are you sure you want to delete selected tasks?"
+          onClose={() => setDeleteSelectedOpen(false)}
+          icon={<Delete />}
         />
-        <DialogContent translate="no">
-          {listFormat.format(
-            multipleSelectedTasks
-              .map((taskId) => user.tasks.find((task) => task.id === taskId)?.name)
-              .filter((taskName) => taskName !== undefined) as string[],
-          )}
-        </DialogContent>
         <DialogActions>
           <DialogBtn onClick={() => setDeleteSelectedOpen(false)} color="primary">
             Cancel
@@ -735,14 +834,15 @@ export const TasksList: React.FC = () => {
               setUser((prevUser) => ({
                 ...prevUser,
                 tasks: prevUser.tasks.filter((task) => !multipleSelectedTasks.includes(task.id)),
-                deletedTasks: [
-                  ...(prevUser.deletedTasks || []),
-                  ...multipleSelectedTasks.filter((id) => !prevUser.deletedTasks?.includes(id)),
-                ],
+                deletedTasks: [...(prevUser.deletedTasks ?? []), ...multipleSelectedTasks],
               }));
-              // Clear the selected task IDs after the operation
               setMultipleSelectedTasks([]);
               setDeleteSelectedOpen(false);
+              showToast(
+                <div>
+                  Deleted <b>{multipleSelectedTasks.length}</b> tasks
+                </div>,
+              );
             }}
             color="error"
           >

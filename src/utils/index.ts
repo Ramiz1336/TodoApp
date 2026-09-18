@@ -6,6 +6,8 @@ export { saveQRCode } from "./saveQRCode";
 export { showToast } from "./showToast";
 export { generateUUID } from "./generateUUID";
 export { timeAgo, formatDate, calculateDateDifference, shortRelativeTime } from "./timeUtils";
+export { recordTaskCompletion, recordTaskCompletions } from "./performance";
+export { saveTaskCompletionPhoto } from "./taskCompletionPhotoStorage";
 export {
   initDB,
   deleteProfilePictureFromDB,

@@ -75,8 +75,8 @@ export const formatDate = (input: Date): string => {
 export const calculateDateDifference = (
   date: Date,
   lang: string = navigator.language || "en-US",
+  now: Date = new Date(),
 ): string => {
-  const now = new Date();
   const target = new Date(date);
   const rtf = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
 

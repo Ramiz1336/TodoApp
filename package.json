@@ -84,7 +84,8 @@
   ],
   "overrides": {
     "react-spring-bottom-sheet": {
-      "react": "19.0.0"
+      "react": "$react",
+      "react-dom": "$react-dom"
     }
   },
   "lint-staged": {

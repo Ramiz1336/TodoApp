@@ -1,34 +1,44 @@
 import { useRef, memo, useContext } from "react";
 import { Emoji } from "emoji-picker-react";
-import { DoneRounded, PushPinRounded, Link, DragIndicatorRounded } from "@mui/icons-material";
+import { CheckRounded, PushPinRounded, Link, DragIndicatorRounded } from "@mui/icons-material";
 import { Tooltip } from "@mui/material";
 import type { Task, UUID } from "../../types/user";
+import { recurrenceSummary } from "../RecurrenceConfig";
 import {
   TaskContainer,
+  TaskColorIndicator,
   EmojiContainer,
   TaskInfo,
   Pinned,
+  RecurrencePill,
+  DueDatePill,
   TaskHeader,
   TaskName,
-  TaskDate,
   TaskDescription,
-  TimeLeft,
+  TaskMetaRow,
+  RecurrenceProgress,
   RingAlarm,
   StyledRadio,
   RadioChecked,
   RadioUnchecked,
   TaskCategoriesContainer,
+  TaskSideMeta,
   SharedByContainer,
   TaskActionsContainer,
   DragHandle,
+  MockupStatusWrap,
+  MockupStatusLabel,
+  MockupCheckbox,
 } from "./tasks.styled";
-import { calculateDateDifference, formatDate, getFontColor, systemInfo } from "../../utils";
 import { RenderTaskDescription } from "./RenderTaskDescription";
 import { CategoryBadge } from "..";
 import { UserContext } from "../../contexts/UserContext";
 import { TaskContext } from "../../contexts/TaskContext";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { getAppNow } from "../../utils/testingDate";
+import { isTaskScheduledOnDate } from "../../utils/taskSchedule";
+import { applyTaskCompletion } from "../../utils/taskRecurrence";
 
 interface TaskItemProps {
   task: Task;
@@ -37,6 +47,7 @@ interface TaskItemProps {
     enableGlow?: boolean;
     enableSelection?: boolean;
     enableMoveMode?: boolean;
+    fullDescription?: boolean;
   };
   selection?: {
     selectedIds?: UUID[];
@@ -48,10 +59,7 @@ interface TaskItemProps {
   blur?: boolean;
   textHighlighter?: (text: string) => React.ReactNode;
 }
-/**
- * A reusable task component that displays task information with configurable features.
- * used across different views (TasksList, Share, ShareDialog) with consistent styling but varied behavior.
- */
+
 export const TaskItem = memo(
   ({
     task,
@@ -62,9 +70,9 @@ export const TaskItem = memo(
     blur,
     textHighlighter = (text) => text,
   }: TaskItemProps & { draggingId?: string; draggingHeight?: number }) => {
-    const { user } = useContext(UserContext);
+    const { user, setUser } = useContext(UserContext);
     const { settings } = user;
-    const { moveMode } = useContext(TaskContext);
+    const { moveMode, handleOpenCompletionDialog } = useContext(TaskContext);
 
     // dnd-kit sortable logic
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -93,9 +101,49 @@ export const TaskItem = memo(
       }
     };
 
+    const handleToggleDone = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (task.done) {
+        setUser((prevUser) => {
+          const updatedTasks = prevUser.tasks.map((t) =>
+            t.id === task.id ? applyTaskCompletion(t) : t,
+          );
+          return { ...prevUser, tasks: updatedTasks };
+        });
+      } else {
+        if (handleOpenCompletionDialog) {
+          handleOpenCompletionDialog(task.id);
+        } else {
+          setUser((prevUser) => {
+            const updatedTasks = prevUser.tasks.map((t) =>
+              t.id === task.id ? applyTaskCompletion(t) : t,
+            );
+            return { ...prevUser, tasks: updatedTasks };
+          });
+        }
+      }
+    };
+
     if (!task) {
       return null;
     }
+
+    const formatDeadlineBadge = (deadline: Date | string) => {
+      const appNow = getAppNow();
+      const today = new Date(appNow).setHours(0, 0, 0, 0);
+      const tomorrow = new Date(appNow);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStart = tomorrow.setHours(0, 0, 0, 0);
+
+      const d = new Date(deadline).setHours(0, 0, 0, 0);
+      if (d < today) return { label: "Overdue", isUrgent: true };
+      if (d === today) return { label: "Due today", isUrgent: true };
+      if (d === tomorrowStart) return { label: "Due tomorrow", isUrgent: false };
+      return {
+        label: `Due ${new Date(deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
+        isUrgent: false,
+      };
+    };
 
     return (
       <TaskContainer
@@ -124,9 +172,10 @@ export const TaskItem = memo(
             <DragIndicatorRounded sx={{ mr: "4px", ml: "-8px" }} />
           </DragHandle>
         )}
+
         {enableSelection && selectedIds.length > 0 && (
           <StyledRadio
-            clr={getFontColor(task.color)}
+            clr={task.color}
             checked={isSelected}
             icon={<RadioUnchecked />}
             checkedIcon={<RadioChecked />}
@@ -143,108 +192,136 @@ export const TaskItem = memo(
           />
         )}
 
-        {(task.emoji || task.done) && (
-          <EmojiContainer clr={getFontColor(task.color)}>
-            {task.done ? (
-              <DoneRounded fontSize="large" />
-            ) : (
-              <Emoji
-                size={systemInfo.os === "iOS" || systemInfo.os === "macOS" ? 50 : 38}
-                unified={task.emoji || ""}
-                emojiStyle={user.emojisStyle}
-                lazyLoad
-              />
-            )}
+        {/* Left colored dot as shown in the approved mockup */}
+        <TaskColorIndicator color={task.color} />
+
+        {task.emoji && (
+          <EmojiContainer clr={task.color}>
+            <Emoji size={22} unified={task.emoji || ""} emojiStyle={user.emojisStyle} lazyLoad />
           </EmojiContainer>
         )}
 
         <TaskInfo translate="no">
-          {task.pinned && (
-            <Pinned translate="yes">
-              <PushPinRounded fontSize="small" /> &nbsp; Pinned
-            </Pinned>
-          )}
           <TaskHeader>
             <TaskName done={task.done}>{textHighlighter(task.name)}</TaskName>
-            <Tooltip
-              title={
-                moveMode && enableMoveMode
-                  ? ""
-                  : new Intl.DateTimeFormat(navigator.language, {
-                      dateStyle: "full",
-                      timeStyle: "medium",
-                    }).format(new Date(task.date))
-              }
-            >
-              <TaskDate>{formatDate(new Date(task.date))}</TaskDate>
-            </Tooltip>
           </TaskHeader>
 
-          <TaskDescription done={task.done}>
-            <RenderTaskDescription
-              task={task}
-              textHighlighter={textHighlighter}
-              enableLinks={enableLinks}
-              enableMoreButton={!!actions}
-            />
-          </TaskDescription>
+          {task.description && (
+            <TaskDescription done={task.done}>
+              <RenderTaskDescription
+                task={task}
+                textHighlighter={textHighlighter}
+                enableLinks={enableLinks}
+                fullDescription={features.fullDescription}
+              />
+            </TaskDescription>
+          )}
 
-          {task.deadline && (
-            <Tooltip
-              title={
-                moveMode && enableMoveMode
-                  ? ""
-                  : new Intl.DateTimeFormat(navigator.language, {
-                      dateStyle: "full",
-                      timeStyle: "medium",
-                    }).format(new Date(task.deadline))
-              }
-              placement="bottom-start"
-            >
-              <TimeLeft done={task.done} translate="yes">
-                <RingAlarm
-                  fontSize="small"
-                  animate={new Date() > new Date(task.deadline) && !task.done}
-                  sx={{
-                    color: `${getFontColor(task.color)} !important`,
-                  }}
-                />{" "}
-                &nbsp;
-                {new Date(task.deadline).toLocaleDateString()} {" • "}
-                {new Date(task.deadline).toLocaleTimeString()}
-                {!task.done && (
-                  <>
-                    {" • "}
-                    {calculateDateDifference(new Date(task.deadline))}
-                  </>
-                )}
-              </TimeLeft>
-            </Tooltip>
+          {(task.pinned ||
+            task.recurrence ||
+            task.deadline ||
+            (settings.enableCategories && task.category && task.category.length > 0)) && (
+            <TaskMetaRow translate="yes">
+              {settings.enableCategories && task.category && (
+                <TaskCategoriesContainer>
+                  {task.category.map((category) => (
+                    <CategoryBadge
+                      key={category.id}
+                      category={category}
+                      sx={{
+                        boxShadow: "none",
+                        height: "22px",
+                        fontSize: "11px",
+                        "& .MuiChip-label": { px: "8px" },
+                      }}
+                    />
+                  ))}
+                </TaskCategoriesContainer>
+              )}
+
+              {task.recurrence && (
+                <RecurrencePill clr={task.color}>
+                  {task.recurrence === "daily"
+                    ? "Daily"
+                    : task.recurrence === "weekly"
+                      ? "Weekly"
+                      : task.recurrence === "monthly"
+                        ? "Monthly"
+                        : recurrenceSummary(
+                            task.recurrence,
+                            task.recurrenceDays,
+                            task.recurrenceCount,
+                          )}
+                </RecurrencePill>
+              )}
+
+              {task.deadline && (
+                <Tooltip
+                  title={
+                    moveMode && enableMoveMode
+                      ? ""
+                      : new Intl.DateTimeFormat(navigator.language, {
+                          dateStyle: "full",
+                          timeStyle: "medium",
+                        }).format(new Date(task.deadline))
+                  }
+                  placement="bottom-start"
+                >
+                  <span>
+                    <DueDatePill
+                      isUrgent={formatDeadlineBadge(task.deadline).isUrgent && !task.done}
+                    >
+                      <RingAlarm
+                        sx={{ fontSize: 13 }}
+                        animate={getAppNow() > new Date(task.deadline) && !task.done}
+                      />
+                      {formatDeadlineBadge(task.deadline).label}
+                    </DueDatePill>
+                  </span>
+                </Tooltip>
+              )}
+
+              {task.pinned && (
+                <Pinned>
+                  <PushPinRounded sx={{ fontSize: 13, transform: "rotate(45deg)" }} />
+                </Pinned>
+              )}
+            </TaskMetaRow>
           )}
 
           {task.sharedBy && (
             <SharedByContainer translate="yes">
-              <Link /> Shared by{" "}
+              <Link sx={{ fontSize: 14 }} /> Shared by{" "}
               <span translate={task.sharedBy === "User" ? "yes" : "no"}>{task.sharedBy}</span>
             </SharedByContainer>
           )}
-
-          {settings.enableCategories && task.category && (
-            <TaskCategoriesContainer>
-              {task.category.map((category) => (
-                <CategoryBadge
-                  key={category.id}
-                  category={category}
-                  borderclr={getFontColor(task.color)}
-                  sx={{
-                    ...(features.enableGlow === false ? { boxShadow: "none" } : {}),
-                  }}
-                />
-              ))}
-            </TaskCategoriesContainer>
-          )}
         </TaskInfo>
-        <TaskActionsContainer>{actions}</TaskActionsContainer>
+
+        <TaskActionsContainer>
+          <TaskSideMeta>
+            {task.recurrence &&
+              (task.recurrence === "weekly" || task.recurrence === "monthly") &&
+              (task.recurrenceCount ?? 1) > 1 &&
+              !(task.recurrence === "weekly" && isTaskScheduledOnDate(task, getAppNow())) && (
+                <RecurrenceProgress
+                  aria-label={`${task.recurrenceCompletedCount ?? 0} of ${task.recurrenceCount} completed`}
+                >
+                  {Math.min(task.recurrenceCompletedCount ?? 0, task.recurrenceCount ?? 1)}/
+                  {task.recurrenceCount}
+                </RecurrenceProgress>
+              )}
+          </TaskSideMeta>
+
+          {/* Exact Mockup Status Indicator (DONE / PENDING + Styled Checkbox) */}
+          <MockupStatusWrap onClick={handleToggleDone}>
+            <MockupStatusLabel done={task.done}>{task.done ? "DONE" : "PENDING"}</MockupStatusLabel>
+            <MockupCheckbox done={task.done} color={task.color}>
+              {task.done && <CheckRounded sx={{ fontSize: 16 }} />}
+            </MockupCheckbox>
+          </MockupStatusWrap>
+
+          {actions}
+        </TaskActionsContainer>
       </TaskContainer>
     );
   },

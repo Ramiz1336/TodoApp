@@ -1,57 +1,63 @@
 import { Emoji } from "emoji-picker-react";
 import { lazy, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  CategoryBadge,
-  ColorPicker,
-  CustomDialogTitle,
-  CustomEmojiPicker,
-  TopBar,
-} from "../components";
+import { CategoryBadge, ColorPicker, CustomDialogTitle, CustomEmojiPicker } from "../components";
 import type { Category, Task, UUID } from "../types/user";
 import { useTheme } from "@emotion/react";
-import { Delete, DeleteRounded, Edit, ExpandMoreRounded, SaveRounded } from "@mui/icons-material";
+import {
+  ArrowBackRounded,
+  DeleteRounded,
+  EditRounded,
+  ExpandMoreRounded,
+  SaveRounded,
+  StarRounded,
+  StarBorderRounded,
+  AddRounded,
+} from "@mui/icons-material";
 import {
   AccordionDetails,
   AccordionSummary,
+  Accordion,
   Dialog,
   DialogActions,
   DialogContent,
   IconButton,
+  Popover,
   Tooltip,
+  Chip,
 } from "@mui/material";
+import styled from "@emotion/styled";
 import { CATEGORY_NAME_MAX_LENGTH } from "../constants";
 import { UserContext } from "../contexts/UserContext";
 import { useStorageState } from "../hooks/useStorageState";
-import {
-  ActionButton,
-  AddCategoryButton,
-  AddContainer,
-  AssociatedTasksAccordion,
-  CategoriesContainer,
-  CategoryContent,
-  CategoryElement,
-  CategoryElementsContainer,
-  CategoryInput,
-  DialogBtn,
-  EditNameInput,
-  StarChecked,
-  StarUnchecked,
-} from "../styles";
+import { DialogBtn } from "../styles";
 import { formatDate, generateUUID, getFontColor, showToast, timeAgo } from "../utils";
 import { ColorPalette } from "../theme/themeConfig";
-import InputThemeProvider from "../contexts/InputThemeProvider";
 import { useToasterStore } from "react-hot-toast";
 import { TaskContext } from "../contexts/TaskContext";
+import { TestingDateControl } from "../components/TestingDateControl";
+import { getAppNow } from "../utils/testingDate";
 
 const DEFAULT_EDIT_CATEGORY_SUBTITLE = "Edit the details of the category.";
-
 const NotFound = lazy(() => import("./NotFound"));
+
+const formatHeaderDate = (d: Date): string => {
+  const dayName = d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
+  const dayNum = d.getDate();
+  const monthName = d.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+  const year = d.getFullYear();
+  return `${dayName}  /  ${dayNum}  ${monthName}  ${year}`;
+};
 
 const Categories = () => {
   const { user, setUser } = useContext(UserContext);
   const { updateCategory } = useContext(TaskContext);
   const theme = useTheme();
+  const n = useNavigate();
+  const { toasts } = useToasterStore();
+  const now = getAppNow();
+
+  const [testDateAnchor, setTestDateAnchor] = useState<HTMLElement | null>(null);
 
   const [name, setName] = useStorageState<string>("", "catName", "sessionStorage");
   const [nameError, setNameError] = useState<string>("");
@@ -69,9 +75,6 @@ const Categories = () => {
   const [editLastSaveLabel, setEditLastSaveLabel] = useState<string>(
     DEFAULT_EDIT_CATEGORY_SUBTITLE,
   );
-
-  const n = useNavigate();
-  const { toasts } = useToasterStore();
 
   const selectedCategory = user.categories.find((cat) => cat.id === selectedCategoryId);
 
@@ -238,95 +241,201 @@ const Categories = () => {
   }
 
   return (
-    <>
-      <TopBar title="Categories" />
-      <CategoriesContainer>
-        {user.categories.length > 0 ? (
-          <CategoryElementsContainer>
-            {user.categories.map((category) => {
-              const categoryTasks = user.tasks.filter((task) =>
-                task.category?.some((cat) => cat.id === category.id),
-              );
+    <PageContainer>
+      {/* Top Bar Header */}
+      <TopBar>
+        <BackBtn onClick={() => n("/")} aria-label="Back to Tasks">
+          <ArrowBackRounded sx={{ fontSize: 18 }} />
+          <span>Tasks</span>
+        </BackBtn>
 
-              const completedTasksCount = categoryTasks.reduce(
-                (count, task) => (task.done ? count + 1 : count),
-                0,
-              );
-              const totalTasksCount = categoryTasks.length;
-              const completionPercentage =
-                totalTasksCount > 0 ? Math.floor((completedTasksCount / totalTasksCount) * 100) : 0;
+        <DateDisplay
+          onClick={(e) => setTestDateAnchor(e.currentTarget)}
+          title="Click to adjust test date"
+        >
+          {formatHeaderDate(now)}
+        </DateDisplay>
 
-              const displayPercentage = totalTasksCount > 0 ? `(${completionPercentage}%)` : "";
+        <Popover
+          open={Boolean(testDateAnchor)}
+          anchorEl={testDateAnchor}
+          onClose={() => setTestDateAnchor(null)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+          PaperProps={{
+            sx: {
+              p: 2,
+              borderRadius: "16px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+            },
+          }}
+        >
+          <TestingDateControl />
+        </Popover>
+      </TopBar>
 
-              return (
-                <CategoryElement key={category.id} clr={category.color}>
-                  <CategoryContent translate="no">
-                    <span>
-                      {category.emoji && (
-                        <Emoji unified={category.emoji} emojiStyle={user.emojisStyle} />
-                      )}
-                    </span>
-                    &nbsp;
-                    <span style={{ wordBreak: "break-all", fontWeight: 600 }}>{category.name}</span>
-                    {totalTasksCount > 0 && (
-                      <Tooltip title="The percentage of completion of tasks assigned to this category">
-                        <span style={{ opacity: 0.8, fontStyle: "italic" }}>
-                          {displayPercentage}
-                        </span>
-                      </Tooltip>
+      <TitleSection>
+        <PageTitle>Categories</PageTitle>
+        <PageSubtitle>
+          Organize and prioritize your tasks with custom categories, colors, and emojis.
+        </PageSubtitle>
+      </TitleSection>
+
+      <AccentLine color={theme.primary} />
+
+      {/* Categories List Section */}
+      <SectionHeader>
+        <SectionHeading>Your Categories</SectionHeading>
+        <Chip
+          label={`${user.categories.length} total`}
+          size="small"
+          sx={{
+            fontSize: "11px",
+            fontWeight: 600,
+            borderRadius: "8px",
+            backgroundColor: "var(--bg-card)",
+            border: "1px solid var(--border-card)",
+            color: "var(--text-muted)",
+          }}
+        />
+      </SectionHeader>
+
+      {user.categories.length > 0 ? (
+        <CategoriesList>
+          {user.categories.map((category) => {
+            const categoryTasks = user.tasks.filter((task) =>
+              task.category?.some((cat) => cat.id === category.id),
+            );
+
+            const completedTasksCount = categoryTasks.reduce(
+              (count, task) => (task.done ? count + 1 : count),
+              0,
+            );
+            const totalTasksCount = categoryTasks.length;
+            const completionPercentage =
+              totalTasksCount > 0 ? Math.floor((completedTasksCount / totalTasksCount) * 100) : 0;
+            const isFav = user.favoriteCategories.includes(category.id);
+
+            return (
+              <CategoryCard key={category.id}>
+                <CategoryCardMain>
+                  <CategoryColorBar color={category.color} />
+                  <CategoryEmojiWrap>
+                    {category.emoji ? (
+                      <Emoji unified={category.emoji} emojiStyle={user.emojisStyle} size={22} />
+                    ) : (
+                      <CategoryDot color={category.color} />
                     )}
-                  </CategoryContent>
-                  <div style={{ display: "flex", gap: "6px" }}>
-                    <ActionButton>
-                      <IconButton color="warning" onClick={() => handleAddToFavorites(category)}>
-                        {user.favoriteCategories.includes(category.id) ? (
-                          <StarChecked color="warning" />
+                  </CategoryEmojiWrap>
+
+                  <CategoryInfo>
+                    <CategoryName>{category.name}</CategoryName>
+                    <CategoryMetaRow>
+                      {totalTasksCount > 0 ? (
+                        <>
+                          <Chip
+                            label={`${completionPercentage}% completed`}
+                            size="small"
+                            sx={{
+                              height: "20px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              borderRadius: "6px",
+                              backgroundColor: `${category.color}15`,
+                              color: category.color,
+                            }}
+                          />
+                          <CategoryTaskCount>
+                            {completedTasksCount}/{totalTasksCount} tasks
+                          </CategoryTaskCount>
+                        </>
+                      ) : (
+                        <CategoryTaskCount>0 tasks</CategoryTaskCount>
+                      )}
+                    </CategoryMetaRow>
+                  </CategoryInfo>
+
+                  <CategoryActions>
+                    <Tooltip title={isFav ? "Remove from favorites" : "Add to favorites"}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleAddToFavorites(category)}
+                        sx={{ color: isFav ? "#f59e0b" : "var(--text-muted)" }}
+                      >
+                        {isFav ? (
+                          <StarRounded sx={{ fontSize: 20 }} />
                         ) : (
-                          <StarUnchecked color="disabled" />
+                          <StarBorderRounded sx={{ fontSize: 20 }} />
                         )}
                       </IconButton>
-                    </ActionButton>
-                    <ActionButton>
+                    </Tooltip>
+
+                    <Tooltip title="Edit category">
                       <IconButton
-                        color="primary"
+                        size="small"
                         onClick={() => {
                           setSelectedCategoryId(category.id);
                           setOpenEditDialog(true);
                         }}
+                        sx={{ color: "var(--text-muted)" }}
                       >
-                        <Edit />
+                        <EditRounded sx={{ fontSize: 18 }} />
                       </IconButton>
-                    </ActionButton>
-                    <ActionButton>
+                    </Tooltip>
+
+                    <Tooltip title="Delete category">
                       <IconButton
-                        color="error"
+                        size="small"
                         onClick={() => {
                           setSelectedCategoryId(category.id);
-                          if (
-                            totalTasksCount > 0 ||
-                            user.favoriteCategories.includes(category.id)
-                          ) {
-                            // Open delete dialog if there are tasks associated to catagory or if it's a favorite
+                          if (totalTasksCount > 0 || isFav) {
                             setOpenDeleteDialog(true);
                           } else {
-                            // If no associated tasks, directly handle deletion
                             handleDelete(category.id);
                           }
                         }}
+                        sx={{ color: "#ef4444" }}
                       >
-                        <Delete />
+                        <DeleteRounded sx={{ fontSize: 18 }} />
                       </IconButton>
-                    </ActionButton>
-                  </div>
-                </CategoryElement>
-              );
-            })}
-          </CategoryElementsContainer>
-        ) : (
-          <p>You don't have any categories</p>
-        )}
-        <AddContainer>
-          <h2>Add New Category</h2>
+                    </Tooltip>
+                  </CategoryActions>
+                </CategoryCardMain>
+
+                {/* Associated Tasks Accordion */}
+                {totalTasksCount > 0 && (
+                  <StyledAccordion>
+                    <AccordionSummary expandIcon={<ExpandMoreRounded sx={{ fontSize: 18 }} />}>
+                      <AccordionTitle>View {totalTasksCount} associated tasks</AccordionTitle>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ px: 2, pb: 1.5, pt: 0 }}>
+                      <AssociatedTasksList>
+                        {categoryTasks.map((t) => (
+                          <AssociatedTaskItem key={t.id} done={t.done}>
+                            <AssociatedTaskDot done={t.done} color={category.color} />
+                            <span>{t.name}</span>
+                            {t.done && <TaskDoneBadge>Done</TaskDoneBadge>}
+                          </AssociatedTaskItem>
+                        ))}
+                      </AssociatedTasksList>
+                    </AccordionDetails>
+                  </StyledAccordion>
+                )}
+              </CategoryCard>
+            );
+          })}
+        </CategoriesList>
+      ) : (
+        <EmptyBox>You haven't created any custom categories yet.</EmptyBox>
+      )}
+
+      {/* Add New Category Card */}
+      <FormCard>
+        <FormHeading>
+          <AddRounded sx={{ color: theme.primary }} /> Add New Category
+        </FormHeading>
+
+        <EmojiPickerRow>
           <CustomEmojiPicker
             emoji={typeof emoji === "string" ? emoji : undefined}
             setEmoji={setEmoji}
@@ -334,115 +443,114 @@ const Categories = () => {
             name={name}
             type="category"
           />
-          <InputThemeProvider>
-            <CategoryInput
-              required
-              label="Category name"
-              placeholder="Enter category name"
-              value={name}
-              onChange={handleNameChange}
-              error={nameError !== ""}
-              helperText={
-                name == ""
-                  ? undefined
-                  : !nameError
-                    ? `${name.length}/${CATEGORY_NAME_MAX_LENGTH}`
-                    : nameError
-              }
-            />
-          </InputThemeProvider>
+        </EmojiPickerRow>
+
+        <FormInputWrap>
+          <ModernInput
+            placeholder="Enter category name..."
+            value={name}
+            onChange={handleNameChange}
+            maxLength={CATEGORY_NAME_MAX_LENGTH}
+          />
+          <CharCounter hasError={nameError !== ""}>
+            {name.length}/{CATEGORY_NAME_MAX_LENGTH}
+          </CharCounter>
+        </FormInputWrap>
+        {nameError && <ErrorMessage>{nameError}</ErrorMessage>}
+
+        <ColorPickerSection>
+          <ColorPickerLabel>Choose Category Color</ColorPickerLabel>
           <ColorPicker
             color={color}
-            onColorChange={(color) => {
-              setColor(color);
-            }}
-            width={400}
+            onColorChange={(newColor) => setColor(newColor)}
+            width="100%"
             fontColor={getFontColor(theme.secondary)}
           />
-          <AddCategoryButton
-            onClick={handleAddCategory}
-            disabled={name.length > CATEGORY_NAME_MAX_LENGTH}
-          >
-            Create Category
-          </AddCategoryButton>
-        </AddContainer>
-        <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
-          <CustomDialogTitle
-            title="Delete this category?"
-            subTitle="This action cannot be undone."
-            icon={<DeleteRounded />}
-            onClose={() => setOpenDeleteDialog(false)}
-          />
+        </ColorPickerSection>
 
-          <DialogContent>
-            {selectedCategory ? (
-              <>
-                <CategoryBadge
-                  glow={false}
-                  category={user.categories.find((cat) => cat.id === selectedCategoryId)!}
-                  sx={{ width: "100%", height: "100%", margin: "0 auto", borderRadius: "12px" }}
-                />
-                {getAssociatedTasks(selectedCategoryId!).length > 0 && (
-                  <AssociatedTasksAccordion>
-                    <AccordionSummary expandIcon={<ExpandMoreRounded />}>
-                      <span style={{ fontWeight: 600 }}>
-                        {`Associated Tasks (${getAssociatedTasks(selectedCategoryId!).length})`}
-                      </span>
-                    </AccordionSummary>
-                    <AccordionDetails sx={{ p: 0, m: 0 }}>
-                      <ul>
-                        {user.tasks
-                          .filter((task) =>
-                            task.category?.some((cat) => cat.id === selectedCategoryId),
-                          )
-                          .map((task) => (
-                            <li key={task.id}>{task.name}</li>
-                          ))}
-                      </ul>
-                    </AccordionDetails>
-                  </AssociatedTasksAccordion>
-                )}
-              </>
-            ) : (
-              <p style={{ textAlign: "center" }}>Category not found</p>
-            )}
-          </DialogContent>
-
-          <DialogActions>
-            <DialogBtn onClick={() => setOpenDeleteDialog(false)}>Cancel</DialogBtn>
-            <DialogBtn
-              onClick={() => {
-                handleDelete(selectedCategoryId);
-                setOpenDeleteDialog(false);
-              }}
-              color="error"
-            >
-              <DeleteRounded /> &nbsp; Delete
-            </DialogBtn>
-          </DialogActions>
-        </Dialog>
-        {/* Edit Dialog */}
-        <Dialog
-          open={openEditDialog}
-          onClose={handleEditDimiss}
-          slotProps={{
-            paper: {
-              style: {
-                borderRadius: "24px",
-                padding: "12px",
-                minWidth: "350px",
-              },
-            },
-          }}
+        <CreateCategoryBtn
+          onClick={handleAddCategory}
+          primaryColor={theme.primary}
+          disabled={name.trim().length === 0 || name.length > CATEGORY_NAME_MAX_LENGTH}
         >
-          <CustomDialogTitle
-            title="Edit Category"
-            subTitle={editLastSaveLabel}
-            icon={<Edit />}
-            onClose={handleEditDimiss}
-          />
+          Create Category
+        </CreateCategoryBtn>
+      </FormCard>
 
-          <DialogContent>
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={openDeleteDialog}
+        onClose={() => setOpenDeleteDialog(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: "20px",
+            padding: "8px",
+            maxWidth: "420px",
+          },
+        }}
+      >
+        <CustomDialogTitle
+          title="Delete category?"
+          subTitle="This action cannot be undone."
+          icon={<DeleteRounded />}
+          onClose={() => setOpenDeleteDialog(false)}
+        />
+        <DialogContent sx={{ px: 2, py: 1.5 }}>
+          {selectedCategory ? (
+            <>
+              <CategoryBadge
+                glow={false}
+                category={selectedCategory}
+                sx={{ width: "100%", height: "100%", margin: "0 auto", borderRadius: "12px" }}
+              />
+              {getAssociatedTasks(selectedCategory.id).length > 0 && (
+                <WarningNotice>
+                  ⚠️ {getAssociatedTasks(selectedCategory.id).length} task(s) are assigned to this
+                  category. They will remain in your tasks but will lose this category tag. ⚠️{" "}
+                  {getAssociatedTasks(selectedCategory.id).length} task(s) are assigned to this
+                  category. They will remain in your tasks but will lose this category tag.
+                </WarningNotice>
+              )}
+            </>
+          ) : (
+            <p>Category not found</p>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 2, pb: 2 }}>
+          <DialogBtn onClick={() => setOpenDeleteDialog(false)}>Cancel</DialogBtn>
+          <DialogBtn
+            onClick={() => {
+              handleDelete(selectedCategoryId);
+              setOpenDeleteDialog(false);
+            }}
+            color="error"
+          >
+            <DeleteRounded sx={{ fontSize: 18 }} /> &nbsp; Delete
+          </DialogBtn>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Category Dialog */}
+      <Dialog
+        open={openEditDialog}
+        onClose={handleEditDimiss}
+        PaperProps={{
+          sx: {
+            borderRadius: "20px",
+            padding: "8px",
+            maxWidth: "460px",
+            width: "100%",
+          },
+        }}
+      >
+        <CustomDialogTitle
+          title="Edit Category"
+          subTitle={editLastSaveLabel}
+          icon={<EditRounded />}
+          onClose={handleEditDimiss}
+        />
+        <DialogContent sx={{ px: 2, py: 1.5 }}>
+          <EmojiPickerRow>
             <CustomEmojiPicker
               emoji={
                 user.categories.find((cat) => cat.id === selectedCategoryId)?.emoji || undefined
@@ -452,51 +560,442 @@ const Categories = () => {
               name={editName}
               type="category"
             />
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                flexDirection: "column",
-              }}
-            >
-              <EditNameInput
-                label="Enter category name"
-                placeholder="Enter category name"
-                value={editName}
-                error={editNameError !== "" || editName.length === 0}
-                onChange={handleEditNameChange}
-                helperText={
-                  editNameError
-                    ? editNameError
-                    : editName.length === 0
-                      ? "Category name is required"
-                      : `${editName.length}/${CATEGORY_NAME_MAX_LENGTH}`
-                }
-              />
-              <ColorPicker
-                color={editColor}
-                width="350px"
-                fontColor={theme.darkmode ? ColorPalette.fontLight : ColorPalette.fontDark}
-                onColorChange={(clr) => {
-                  setEditColor(clr);
-                }}
-              />
-            </div>
-          </DialogContent>
-          <DialogActions>
-            <DialogBtn onClick={handleEditDimiss}>Cancel</DialogBtn>
-            <DialogBtn
-              onClick={handleEditCategory}
-              disabled={editNameError !== "" || editName.length === 0}
-            >
-              <SaveRounded /> &nbsp; Save
-            </DialogBtn>
-          </DialogActions>
-        </Dialog>
-      </CategoriesContainer>
-    </>
+          </EmojiPickerRow>
+
+          <FormInputWrap style={{ marginTop: 16 }}>
+            <ModernInput
+              placeholder="Category name"
+              value={editName}
+              onChange={handleEditNameChange}
+              maxLength={CATEGORY_NAME_MAX_LENGTH}
+            />
+            <CharCounter hasError={editNameError !== "" || editName.length === 0}>
+              {editName.length}/{CATEGORY_NAME_MAX_LENGTH}
+            </CharCounter>
+          </FormInputWrap>
+          {editNameError && <ErrorMessage>{editNameError}</ErrorMessage>}
+
+          <ColorPickerSection>
+            <ColorPickerLabel>Category Color</ColorPickerLabel>
+            <ColorPicker
+              color={editColor}
+              width="100%"
+              fontColor={theme.darkmode ? ColorPalette.fontLight : ColorPalette.fontDark}
+              onColorChange={(clr) => setEditColor(clr)}
+            />
+          </ColorPickerSection>
+        </DialogContent>
+        <DialogActions sx={{ px: 2, pb: 2 }}>
+          <DialogBtn onClick={handleEditDimiss}>Cancel</DialogBtn>
+          <DialogBtn
+            onClick={handleEditCategory}
+            disabled={editNameError !== "" || editName.length === 0}
+          >
+            <SaveRounded sx={{ fontSize: 18 }} /> &nbsp; Save
+          </DialogBtn>
+        </DialogActions>
+      </Dialog>
+    </PageContainer>
   );
 };
+
+/* --- Styled Components --- */
+
+const PageContainer = styled.main`
+  --bg-card: ${({ theme }) => (theme.darkmode ? "rgba(255, 255, 255, 0.04)" : "#ffffff")};
+  --border-card: ${({ theme }) => (theme.darkmode ? "rgba(255, 255, 255, 0.08)" : "#e2e8f0")};
+  --border-subtle: ${({ theme }) => (theme.darkmode ? "rgba(255, 255, 255, 0.05)" : "#f1f5f9")};
+  --text-dark: ${({ theme }) => (theme.darkmode ? "#f8fafc" : "#0f172a")};
+  --text-muted: ${({ theme }) => (theme.darkmode ? "#94a3b8" : "#475569")};
+  --text-subtle: ${({ theme }) => (theme.darkmode ? "#cbd5e1" : "#64748b")};
+  --card-hover: ${({ theme }) => (theme.darkmode ? "rgba(255, 255, 255, 0.07)" : "#f8fafc")};
+
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 12px 16px 80px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  font-family: "Poppins", sans-serif;
+
+  @media (min-width: 1025px) {
+    max-width: 680px;
+    margin: 36px auto 80px;
+    padding: 36px 40px 60px;
+    background: ${({ theme }) => (theme.darkmode ? "rgba(255, 255, 255, 0.04)" : "#ffffff")};
+    border-radius: 20px;
+    box-shadow: ${({ theme }) =>
+      theme.darkmode ? "0 4px 32px rgba(0, 0, 0, 0.4)" : "0 4px 32px rgba(100, 110, 140, 0.12)"};
+      theme.darkmode ? "0 4px 32px rgba(0, 0, 0, 0.4)" : "0 4px 32px rgba(100, 110, 140, 0.12)"};
+    border: 1px solid ${({ theme }) => (theme.darkmode ? "rgba(255, 255, 255, 0.08)" : "#e2e8f0")};
+    position: relative;
+  }
+`;
+
+const TopBar = styled.header`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+`;
+
+const BackBtn = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-dark);
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  transition: opacity 0.2s;
+  &:hover {
+    opacity: 0.7;
+  }
+`;
+
+const DateDisplay = styled.div`
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-left: auto;
+  margin-right: 56px;
+  transition: background 0.15s;
+  &:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
+  @media (max-width: 1024px) {
+    margin-right: 52px;
+  }
+`;
+
+const TitleSection = styled.div`
+  margin-bottom: 16px;
+`;
+
+const PageTitle = styled.h1`
+  font-size: clamp(26px, 5vw, 32px);
+  font-weight: 800;
+  color: var(--text-dark);
+  letter-spacing: -0.5px;
+  margin: 0 0 6px 0;
+  line-height: 1.15;
+`;
+
+const PageSubtitle = styled.p`
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--text-subtle);
+  margin: 0;
+  line-height: 1.4;
+`;
+
+const AccentLine = styled.div<{ color: string }>`
+  width: 100%;
+  height: 2px;
+  background-color: ${({ color }) => color || "#7851bf"};
+  margin-bottom: 24px;
+  border-radius: 1px;
+`;
+
+const SectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+`;
+
+const SectionHeading = styled.h2`
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0;
+`;
+
+const CategoriesList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 30px;
+`;
+
+const CategoryCard = styled.div`
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  overflow: hidden;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--text-muted);
+  }
+`;
+
+const CategoryCardMain = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  position: relative;
+`;
+
+const CategoryColorBar = styled.div<{ color: string }>`
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background-color: ${({ color }) => color};
+`;
+
+const CategoryEmojiWrap = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.03);
+  flex-shrink: 0;
+`;
+
+const CategoryDot = styled.span<{ color: string }>`
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: ${({ color }) => color};
+`;
+
+const CategoryInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+`;
+
+const CategoryName = styled.div`
+  font-family: "Poppins", sans-serif;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const CategoryMetaRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+`;
+
+const CategoryTaskCount = styled.span`
+  font-size: 11.5px;
+  color: var(--text-muted);
+`;
+
+const CategoryActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const StyledAccordion = styled(Accordion)`
+  background: transparent !important;
+  box-shadow: none !important;
+  border-top: 1px solid var(--border-card) !important;
+  margin: 0 !important;
+
+  &:before {
+    display: none !important;
+  }
+
+  & .MuiAccordionSummary-root {
+    min-height: 36px !important;
+    padding: 0 16px !important;
+  }
+
+  & .MuiAccordionSummary-content {
+    margin: 6px 0 !important;
+  }
+`;
+
+const AccordionTitle = styled.span`
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+`;
+
+const AssociatedTasksList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const AssociatedTaskItem = styled.div<{ done: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.02);
+  color: ${({ done }) => (done ? "var(--text-muted)" : "var(--text-dark)")};
+  text-decoration: ${({ done }) => (done ? "line-through" : "none")};
+
+  & span {
+    flex: 1;
+  }
+`;
+
+const AssociatedTaskDot = styled.span<{ done: boolean; color: string }>`
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: ${({ done, color }) => (done ? "#94a3b8" : color)};
+`;
+
+const TaskDoneBadge = styled.span`
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+`;
+
+const FormCard = styled.section`
+  padding: 22px;
+  border-radius: 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const FormHeading = styled.h3`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0;
+`;
+
+const EmojiPickerRow = styled.div`
+  display: flex;
+  justify-content: center;
+`;
+
+const FormInputWrap = styled.div`
+  position: relative;
+  width: 100%;
+`;
+
+const ModernInput = styled.input`
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 60px 13px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border-card);
+  background: var(--bg-card);
+  color: var(--text-dark);
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+
+  &:focus {
+    border-color: ${({ theme }) => theme.primary};
+    box-shadow: 0 0 0 3px ${({ theme }) => `${theme.primary}25`};
+  }
+`;
+
+const CharCounter = styled.span<{ hasError: boolean }>`
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: ${({ hasError }) => (hasError ? "#ef4444" : "var(--text-muted)")};
+`;
+
+const ErrorMessage = styled.div`
+  font-size: 12px;
+  color: #ef4444;
+  margin-top: -8px;
+`;
+
+const ColorPickerSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ColorPickerLabel = styled.label`
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-dark);
+`;
+
+const CreateCategoryBtn = styled.button<{ primaryColor: string }>`
+  width: 100%;
+  height: 48px;
+  border-radius: 999px;
+  border: none;
+  background: ${({ primaryColor }) => primaryColor};
+  color: #ffffff;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px ${({ primaryColor }) => `${primaryColor}40`};
+
+  &:hover:not(:disabled) {
+    opacity: 0.92;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+`;
+
+const WarningNotice = styled.div`
+  font-size: 12px;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-top: 12px;
+  line-height: 1.4;
+`;
+
+const EmptyBox = styled.div`
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 24px;
+  text-align: center;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px dashed var(--border-card);
+  margin-bottom: 24px;
+`;
 
 export default Categories;

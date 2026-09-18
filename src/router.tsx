@@ -11,6 +11,9 @@ const Transfer = lazy(() => import("./pages/Transfer"));
 const Categories = lazy(() => import("./pages/Categories"));
 const Purge = lazy(() => import("./pages/Purge"));
 const Sync = lazy(() => import("./pages/Sync"));
+const Performance = lazy(() => import("./pages/Performance"));
+const Tracked = lazy(() => import("./pages/Tracked"));
+const Export = lazy(() => import("./pages/Export"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const AppRouter = (): ReactElement => {
@@ -26,6 +29,9 @@ const AppRouter = (): ReactElement => {
         <Route path="/categories" element={<Categories />} />
         <Route path="/purge" element={<Purge />} />
         <Route path="/sync" element={<Sync />} />
+        <Route path="/performance" element={<Performance />} />
+        <Route path="/tracked" element={<Tracked />} />
+        <Route path="/export" element={<Export />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

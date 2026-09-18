@@ -1,9 +1,25 @@
+import { GetAppRounded } from "@mui/icons-material";
+import { Button } from "@mui/material";
+import { usePWAInstall } from "../../../hooks/usePWAInstall";
 import { systemInfo } from "../../../utils";
 import CustomSwitch from "../CustomSwitch";
 
 export default function GeneralTab() {
+  const { canInstall, install } = usePWAInstall();
+
   return (
     <>
+      {canInstall && (
+        <Button
+          variant="outlined"
+          startIcon={<GetAppRounded />}
+          onClick={install}
+          fullWidth
+          sx={{ mb: 2, borderRadius: "14px", textTransform: "none", fontWeight: 600 }}
+        >
+          Install App
+        </Button>
+      )}
       <CustomSwitch
         settingKey="enableCategories"
         header="Enable Categories"

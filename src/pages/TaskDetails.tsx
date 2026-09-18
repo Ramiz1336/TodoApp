@@ -8,6 +8,7 @@ import { Emoji } from "emoji-picker-react";
 import { useContext, useEffect } from "react";
 import { UserContext } from "../contexts/UserContext";
 import { getColorName } from "ntc-ts";
+import { recurrenceSummary } from "../components/RecurrenceConfig";
 
 const TaskDetails = () => {
   const { user } = useContext(UserContext);
@@ -96,6 +97,30 @@ const TaskDetails = () => {
                 {task?.done ? <Done /> : <Clear />} {task?.done.toString()}
               </TableData>
             </TableRow>
+            {task.recurrence && (
+              <>
+                <TableRow>
+                  <TableHeader>Recurrence:</TableHeader>
+                  <TableData>
+                    {recurrenceSummary(task.recurrence, task.recurrenceDays, task.recurrenceCount)}
+                  </TableData>
+                </TableRow>
+                {(task.recurrence === "weekly" || task.recurrence === "monthly") && (
+                  <TableRow>
+                    <TableHeader>Period progress:</TableHeader>
+                    <TableData>
+                      {task.recurrenceCompletedCount ?? 0} / {task.recurrenceCount ?? 1}
+                    </TableData>
+                  </TableRow>
+                )}
+                {task.lastResetDate && (
+                  <TableRow>
+                    <TableHeader>Period started:</TableHeader>
+                    <TableData>{task.lastResetDate}</TableData>
+                  </TableRow>
+                )}
+              </>
+            )}
             <TableRow>
               <TableHeader>Pinned:</TableHeader>
               <TableData>

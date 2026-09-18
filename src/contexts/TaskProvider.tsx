@@ -11,11 +11,6 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   const [selectedTaskId, setSelectedTaskId] = useState<UUID | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [anchorPosition, setAnchorPosition] = useState<{ top: number; left: number } | null>(null);
-  const [expandedTasks, setExpandedTasks] = useStorageState<UUID[]>(
-    [],
-    "expandedTasks",
-    "sessionStorage",
-  );
   const [multipleSelectedTasks, setMultipleSelectedTasks] = useStorageState<UUID[]>(
     [],
     "selectedTasks",
@@ -24,6 +19,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   const [search, setSearch] = useStorageState<string>("", "search", "sessionStorage");
   const [editModalOpen, setEditModalOpen] = useState<boolean>(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
+  const [completionDialogOpen, setCompletionDialogOpen] = useState<boolean>(false);
   const [sortAnchorEl, setSortAnchorEl] = useState<null | HTMLElement>(null);
 
   const [moveMode, setMoveMode] = useStorageState<boolean>(false, "moveMode", "sessionStorage");
@@ -40,19 +36,6 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       }));
     },
     [setUser],
-  );
-
-  const toggleShowMore = useCallback(
-    (taskId: UUID) => {
-      setExpandedTasks((prevExpandedTasks) => {
-        if (prevExpandedTasks.includes(taskId)) {
-          return prevExpandedTasks.filter((id) => id !== taskId);
-        } else {
-          return [...prevExpandedTasks, taskId];
-        }
-      });
-    },
-    [setExpandedTasks],
   );
 
   const handleSelectTask = useCallback(
@@ -78,7 +61,8 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
         return text;
       }
 
-      const parts = text.split(new RegExp(`(${search})`, "gi"));
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const parts = text.split(new RegExp(`(${escapedSearch})`, "gi"));
       return parts.map((part, index) =>
         part.toLowerCase() === search.toLowerCase() ? (
           <HighlightedText key={index}>{part}</HighlightedText>
@@ -100,10 +84,18 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   const handleCloseMoreMenu = useCallback(() => {
     setAnchorEl(null);
     document.body.style.overflow = "visible";
-    // if (selectedTaskId && !isMobile && expandedTasks.includes(selectedTaskId)) {
-    //   toggleShowMore(selectedTaskId);
-    // }
   }, []);
+
+  const handleOpenCompletionDialog = useCallback(
+    (taskId: UUID) => {
+      setSelectedTaskId(taskId);
+      setAnchorEl(null);
+      setAnchorPosition(null);
+      document.body.style.overflow = "visible";
+      setCompletionDialogOpen(true);
+    },
+    [setSelectedTaskId, setAnchorEl, setAnchorPosition],
+  );
 
   const updateCategory = useCallback(
     (patch: Partial<Category>) => {
@@ -139,9 +131,6 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       setAnchorEl,
       anchorPosition,
       setAnchorPosition,
-      expandedTasks,
-      setExpandedTasks,
-      toggleShowMore,
       search,
       setSearch,
       highlightMatchingText,
@@ -161,14 +150,14 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       moveMode,
       setMoveMode,
       updateCategory,
+      completionDialogOpen,
+      setCompletionDialogOpen,
+      handleOpenCompletionDialog,
     }),
     [
       selectedTaskId,
       anchorEl,
       anchorPosition,
-      expandedTasks,
-      setExpandedTasks,
-      toggleShowMore,
       search,
       setSearch,
       highlightMatchingText,
@@ -185,6 +174,8 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       moveMode,
       setMoveMode,
       updateCategory,
+      completionDialogOpen,
+      handleOpenCompletionDialog,
     ],
   );
 
