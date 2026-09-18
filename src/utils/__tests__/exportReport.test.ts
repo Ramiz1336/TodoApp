@@ -62,7 +62,7 @@ describe("exportReport utils", () => {
       enableGlow: true,
       simpleEmojiPicker: false,
       enableReadAloud: false,
-      voice: "Microsoft Mark",
+      voice: "Microsoft Mark - English (United States)::en-US",
       voiceVolume: 0.6,
       appBadge: false,
       showProgressBar: true,
