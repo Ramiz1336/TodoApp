@@ -1,0 +1,259 @@
+[
+  {
+    "id": "f513cf6b-95f1-4c14-aca0-649f3ceeaf42",
+    "name": "Gym",
+    "emoji": "1f3cb-fe0f",
+    "color": "#f59e0b",
+    "done": false,
+    "pinned": false,
+    "date": "2026-09-19T00:00:00.000Z",
+    "recurrence": "daily",
+    "recurrenceDays": [],
+    "tracked": true,
+    "category": [
+      {
+        "id": "393068a9-9db7-4dfa-a00f-cd359f8024e8",
+        "name": "Health/Fitness",
+        "emoji": "1f4aa",
+        "color": "#fee567"
+      }
+    ],
+    "position": 1
+  },
+  {
+    "id": "279c6eb8-8e88-4fad-8dba-5d5d5c8ff6bf",
+    "name": "DSA",
+    "emoji": "1f4bb",
+    "color": "#8b5cf6",
+    "done": false,
+    "pinned": false,
+    "date": "2026-09-19T00:00:00.000Z",
+    "recurrence": "daily",
+    "recurrenceDays": [],
+    "tracked": true,
+    "category": [
+      {
+        "id": "ebe6ce8b-471f-4632-a23b-578e1038ce51",
+        "name": "Coding",
+        "emoji": "1f4bb",
+        "color": "#835CF0"
+      }
+    ],
+    "position": 2
+  },
+  {
+    "id": "9b830f4d-61ef-4b68-aad3-956f1a4d79f9",
+    "name": "SysDesign",
+    "emoji": "1f5a5-fe0f",
+    "color": "#6366f1",
+    "done": false,
+    "pinned": false,
+    "date": "2026-09-19T00:00:00.000Z",
+    "recurrence": "daily",
+    "recurrenceDays": [],
+    "tracked": true,
+    "category": [
+      {
+        "id": "ebe6ce8b-471f-4632-a23b-578e1038ce51",
+        "name": "Coding",
+        "emoji": "1f4bb",
+        "color": "#835CF0"
+      }
+    ],
+    "position": 3
+  },
+  {
+    "id": "57bb2ecb-26af-4fc8-80b3-943e4ae511ba",
+    "name": "150g Protein",
+    "emoji": "1f95a",
+    "color": "#f97316",
+    "done": false,
+    "pinned": false,
+    "date": "2026-09-19T00:00:00.000Z",
+    "recurrence": "daily",
+    "recurrenceDays": [],
+    "tracked": true,
+    "category": [
+      {
+        "id": "393068a9-9db7-4dfa-a00f-cd359f8024e8",
+        "name": "Health/Fitness",
+        "emoji": "1f4aa",
+        "color": "#fee567"
+      }
+    ],
+    "position": 4
+  },
+  {
+    "id": "df88b2f1-6000-418a-8b61-3f24ccc5645d",
+    "name": "Breakfast",
+    "emoji": "1f373",
+    "color": "#eab308",
+    "done": false,
+    "pinned": false,
+    "date": "2026-09-19T00:00:00.000Z",
+    "recurrence": "daily",
+    "recurrenceDays": [],
+    "tracked": true,
+    "category": [
+      {
+        "id": "857f0db6-43b2-43eb-8143-ec4e26472516",
+        "name": "Home",
+        "emoji": "1f3e0",
+        "color": "#53e45d"
+      }
+    ],
+    "position": 5
+  },
+  {
+    "id": "c0eb02e1-40d7-4bc8-a120-1f1046aebdc1",
+    "name": "Lunch",
+    "emoji": "1f371",
+    "color": "#10b981",
+    "done": false,
+    "pinned": false,
+    "date": "2026-09-19T00:00:00.000Z",
+    "recurrence": "daily",
+    "recurrenceDays": [],
+    "tracked": true,
+    "category": [
+      {
+        "id": "857f0db6-43b2-43eb-8143-ec4e26472516",
+        "name": "Home",
+        "emoji": "1f3e0",
+        "color": "#53e45d"
+      }
+    ],
+    "position": 6
+  },
+  {
+    "id": "5026b54f-d22e-4c52-878a-72876ad3fa2b",
+    "name": "Dinner",
+    "emoji": "1f37d-fe0f",
+    "color": "#3b82f6",
+    "done": false,
+    "pinned": false,
+    "date": "2026-09-19T00:00:00.000Z",
+    "recurrence": "daily",
+    "recurrenceDays": [],
+    "tracked": true,
+    "category": [
+      {
+        "id": "857f0db6-43b2-43eb-8143-ec4e26472516",
+        "name": "Home",
+        "emoji": "1f3e0",
+        "color": "#53e45d"
+      }
+    ],
+    "position": 7
+  },
+  {
+    "id": "08982786-0ec1-4087-ace3-fb8e6e7a31e3",
+    "name": "Expenses",
+    "emoji": "1f4b0",
+    "color": "#14b8a6",
+    "done": false,
+    "pinned": false,
+    "date": "2026-09-19T00:00:00.000Z",
+    "recurrence": "daily",
+    "recurrenceDays": [],
+    "tracked": true,
+    "category": [
+      {
+        "id": "857f0db6-43b2-43eb-8143-ec4e26472516",
+        "name": "Home",
+        "emoji": "1f3e0",
+        "color": "#53e45d"
+      }
+    ],
+    "position": 8
+  },
+  {
+    "id": "266e0297-1959-4242-82d0-1606942bb025",
+    "name": "Biweekly Contest",
+    "emoji": "1f3c6",
+    "color": "#f59e0b",
+    "done": false,
+    "pinned": false,
+    "date": "2026-09-19T00:00:00.000Z",
+    "recurrence": "weekly",
+    "recurrenceDays": [6],
+    "recurrenceCount": 1,
+    "tracked": true,
+    "category": [
+      {
+        "id": "ebe6ce8b-471f-4632-a23b-578e1038ce51",
+        "name": "Coding",
+        "emoji": "1f4bb",
+        "color": "#835CF0"
+      }
+    ],
+    "position": 9
+  },
+  {
+    "id": "679017b7-bbac-4bfd-b7f5-dff2ef95e8f0",
+    "name": "Weekly Contest",
+    "emoji": "1f947",
+    "color": "#a855f7",
+    "done": false,
+    "pinned": false,
+    "date": "2026-09-19T00:00:00.000Z",
+    "recurrence": "weekly",
+    "recurrenceDays": [0],
+    "recurrenceCount": 1,
+    "tracked": true,
+    "category": [
+      {
+        "id": "ebe6ce8b-471f-4632-a23b-578e1038ce51",
+        "name": "Coding",
+        "emoji": "1f4bb",
+        "color": "#835CF0"
+      }
+    ],
+    "position": 10
+  },
+  {
+    "id": "679a4cb6-7716-48bc-80da-d44261c54790",
+    "name": "Football",
+    "emoji": "26bd",
+    "color": "#10b981",
+    "done": false,
+    "pinned": false,
+    "date": "2026-09-19T00:00:00.000Z",
+    "recurrence": "weekly",
+    "recurrenceDays": [0, 6],
+    "recurrenceCount": 1,
+    "tracked": true,
+    "category": [
+      {
+        "id": "393068a9-9db7-4dfa-a00f-cd359f8024e8",
+        "name": "Health/Fitness",
+        "emoji": "1f4aa",
+        "color": "#fee567"
+      }
+    ],
+    "position": 11
+  },
+  {
+    "id": "85d38399-c019-4f61-b3b8-075b838489d0",
+    "name": "Budget Check",
+    "emoji": "1f4ca",
+    "color": "#06b6d4",
+    "done": false,
+    "pinned": false,
+    "date": "2026-09-19T00:00:00.000Z",
+    "recurrence": "monthly",
+    "recurrenceDays": [],
+    "recurrenceCount": 2,
+    "recurrenceCompletedCount": 0,
+    "tracked": false,
+    "category": [
+      {
+        "id": "857f0db6-43b2-43eb-8143-ec4e26472516",
+        "name": "Home",
+        "emoji": "1f3e0",
+        "color": "#53e45d"
+      }
+    ],
+    "position": 12
+  }
+]
