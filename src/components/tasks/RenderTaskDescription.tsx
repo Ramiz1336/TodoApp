@@ -152,6 +152,7 @@ const ScreenDescription = styled.div<{ fullDescription: boolean }>`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: ${({ fullDescription }) => (fullDescription ? "normal" : "normal")};
+  white-space: ${({ fullDescription }) => (fullDescription ? "pre-wrap" : "normal")};
   -webkit-line-clamp: ${({ fullDescription }) => (fullDescription ? "unset" : "1")};
   -webkit-box-orient: vertical;
 
