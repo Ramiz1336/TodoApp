@@ -10,15 +10,12 @@ interface TaskComponentProps {
   glow?: boolean;
   blur?: boolean;
   isDragging?: boolean;
-  fullDescription?: boolean;
 }
 
 /* Exact Card match to mockup: White rounded container, subtle border, left color dot */
 export const TaskContainer = styled.div<TaskComponentProps>`
   display: flex;
   align-items: center;
-  flex-direction: ${({ fullDescription }) => (fullDescription ? "column" : "row")};
-  align-items: ${({ fullDescription }) => (fullDescription ? "stretch" : "center")};
   padding: 14px 16px;
   border-radius: 16px;
   margin-top: 10px;
@@ -120,50 +117,6 @@ export const TaskDescription = styled.div<{ done: boolean }>`
   color: ${({ theme }) => (theme.darkmode ? "#cbd5e1" : "#64748b")};
   text-decoration: ${({ done }) => (done ? "line-through" : "none")};
   word-break: break-word;
-`;
-
-export const TaskTopRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 12px;
-`;
-
-export const TaskTopLeft = styled.div`
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  flex: 1;
-`;
-
-export const TaskDescriptionBox = styled.div<{ done: boolean }>`
-  width: 100%;
-  margin-top: 10px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background-color: ${({ theme }) =>
-    theme.darkmode ? "rgba(0, 0, 0, 0.22)" : "rgba(241, 245, 249, 0.75)"};
-  border: 1px solid
-    ${({ theme }) => (theme.darkmode ? "rgba(255, 255, 255, 0.06)" : "rgba(203, 213, 225, 0.5)")};
-  font-size: 13.5px;
-  line-height: 1.6;
-  color: ${({ theme }) => (theme.darkmode ? "#e2e8f0" : "#334155")};
-  text-decoration: ${({ done }) => (done ? "line-through" : "none")};
-  word-break: break-word;
-  white-space: pre-wrap;
-  box-sizing: border-box;
-  max-height: 240px;
-  overflow-y: auto;
-
-  /* Custom smooth scrollbar */
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: ${({ theme }) => (theme.darkmode ? "rgba(255, 255, 255, 0.18)" : "#cbd5e1")};
-    border-radius: 4px;
-  }
 `;
 
 export const NoTasks = styled.div`
