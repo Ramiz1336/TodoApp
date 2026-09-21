@@ -34,6 +34,13 @@ export interface User {
   theme: "system" | (string & {});
   darkmode: DarkModeOptions;
   lastSyncedAt?: Date;
+  /** Progress on Striver DSA sheet (completed and starred question IDs) */
+  dsaProgress?: DsaProgress;
+}
+
+export interface DsaProgress {
+  solvedProblemIds: string[];
+  starredProblemIds: string[];
 }
 
 export interface PerformanceRecord {

@@ -19,7 +19,10 @@ import {
   PhonelinkRounded,
   QueryStatsRounded,
   SettingsRounded,
+  AccountTreeRounded,
+  StorageRounded,
   TaskAltRounded,
+  TerminalRounded,
   ThumbUpRounded,
 } from "@mui/icons-material";
 import {
@@ -45,6 +48,9 @@ import {
   systemInfo,
   timeAgo,
 } from "../utils";
+import { getDsaStats } from "../data/striverA2ZData";
+import { getSqlStats } from "../data/leetcodeSqlData";
+import { getSystemDesignStats } from "../data/systemDesignData";
 
 export const ProfileSidebar = () => {
   const { user, setUser } = useContext(UserContext);
@@ -93,6 +99,18 @@ export const ProfileSidebar = () => {
   const pendingTasksCount = tasks.filter((task) => !task.done).length;
   const trackedHabitsCount = tasks.filter((t) => t.tracked && t.recurrence === "daily").length;
   const performanceCount = user.performanceRecords?.length ?? 0;
+  const dsaStats = getDsaStats(
+    user.dsaProgress?.solvedProblemIds,
+    user.dsaProgress?.starredProblemIds,
+  );
+  const sqlStats = getSqlStats(
+    user.dsaProgress?.solvedProblemIds,
+    user.dsaProgress?.starredProblemIds,
+  );
+  const sysDesignStats = getSystemDesignStats(
+    user.dsaProgress?.solvedProblemIds,
+    user.dsaProgress?.starredProblemIds,
+  );
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -204,6 +222,75 @@ export const ProfileSidebar = () => {
               {performanceCount > 0 && (
                 <Tooltip title={`${performanceCount} completions recorded`}>
                   <MenuLabel active={isActive("/performance")}>{performanceCount}</MenuLabel>
+                </Tooltip>
+              )}
+            </StyledMenuItem>
+          </MenuLink>
+
+          <MenuLink to="/dsa">
+            <StyledMenuItem
+              active={
+                isActive("/dsa") &&
+                !location.search.includes("sheet=sql") &&
+                !location.search.includes("sheet=sysdesign")
+              }
+              onClick={handleClose}
+            >
+              <TerminalRounded />
+              <span>A2Z DSA Sheet</span>
+              {dsaStats.solved > 0 && (
+                <Tooltip
+                  title={`${dsaStats.solved} of ${dsaStats.total} problems solved in A2Z Sheet (${dsaStats.percentage}%)`}
+                >
+                  <MenuLabel
+                    active={
+                      isActive("/dsa") &&
+                      !location.search.includes("sheet=sql") &&
+                      !location.search.includes("sheet=sysdesign")
+                    }
+                  >
+                    {dsaStats.solved}/{dsaStats.total}
+                  </MenuLabel>
+                </Tooltip>
+              )}
+            </StyledMenuItem>
+          </MenuLink>
+
+          <MenuLink to="/dsa?sheet=sql">
+            <StyledMenuItem
+              active={isActive("/dsa") && location.search.includes("sheet=sql")}
+              onClick={handleClose}
+            >
+              <StorageRounded />
+              <span>LeetCode SQL</span>
+              {sqlStats.solved > 0 && (
+                <Tooltip
+                  title={`${sqlStats.solved} of ${sqlStats.total} SQL problems solved (${sqlStats.percentage}%)`}
+                >
+                  <MenuLabel active={isActive("/dsa") && location.search.includes("sheet=sql")}>
+                    {sqlStats.solved}/{sqlStats.total}
+                  </MenuLabel>
+                </Tooltip>
+              )}
+            </StyledMenuItem>
+          </MenuLink>
+
+          <MenuLink to="/dsa?sheet=sysdesign">
+            <StyledMenuItem
+              active={isActive("/dsa") && location.search.includes("sheet=sysdesign")}
+              onClick={handleClose}
+            >
+              <AccountTreeRounded />
+              <span>System Design</span>
+              {sysDesignStats.solved > 0 && (
+                <Tooltip
+                  title={`${sysDesignStats.solved} of ${sysDesignStats.total} System Design topics solved (${sysDesignStats.percentage}%)`}
+                >
+                  <MenuLabel
+                    active={isActive("/dsa") && location.search.includes("sheet=sysdesign")}
+                  >
+                    {sysDesignStats.solved}/{sysDesignStats.total}
+                  </MenuLabel>
                 </Tooltip>
               )}
             </StyledMenuItem>

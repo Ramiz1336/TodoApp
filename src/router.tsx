@@ -14,6 +14,7 @@ const Sync = lazy(() => import("./pages/Sync"));
 const Performance = lazy(() => import("./pages/Performance"));
 const Tracked = lazy(() => import("./pages/Tracked"));
 const Export = lazy(() => import("./pages/Export"));
+const DsaSheet = lazy(() => import("./pages/DsaSheet"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const AppRouter = (): ReactElement => {
@@ -32,6 +33,7 @@ const AppRouter = (): ReactElement => {
         <Route path="/performance" element={<Performance />} />
         <Route path="/tracked" element={<Tracked />} />
         <Route path="/export" element={<Export />} />
+        <Route path="/dsa" element={<DsaSheet />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

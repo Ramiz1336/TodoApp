@@ -75,4 +75,8 @@ export const defaultUser: User = {
     "#FF5018",
     "#FF2F2F",
   ],
+  dsaProgress: {
+    solvedProblemIds: [],
+    starredProblemIds: [],
+  },
 };
